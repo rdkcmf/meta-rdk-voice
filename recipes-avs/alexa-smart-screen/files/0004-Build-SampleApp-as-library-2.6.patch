@@ -1,0 +1,128 @@
+From f0a3541317a4b2583db67908eae6b550d7e3c056 Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <GaneshPrasad_Sahu@comcast.com>
+Date: Sat, 8 May 2021 18:48:11 +0000
+Subject: [PATCH 1/1] Build SampleApp as library
+
+---
+ modules/Alexa/SampleApp/CMakeLists.txt                   | 4 ++--
+ .../SampleApp/include/SampleApp/SampleApplication.h      | 2 +-
+ modules/Alexa/SampleApp/src/CMakeLists.txt               | 7 +++----
+ modules/Alexa/SampleApp/src/SampleApplication.cpp        | 1 +
+ modules/Alexa/build/cmake/PrepareInstall.cmake           | 9 +++++----
+ 5 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/modules/Alexa/SampleApp/CMakeLists.txt b/modules/Alexa/SampleApp/CMakeLists.txt
+index 464b54d..7eac60a 100644
+--- a/modules/Alexa/SampleApp/CMakeLists.txt
++++ b/modules/Alexa/SampleApp/CMakeLists.txt
+@@ -1,6 +1,6 @@
+-if (((PORTAUDIO OR AUDIO_INJECTION) AND GSTREAMER_MEDIA_PLAYER) OR (ANDROID_MEDIA_PLAYER AND ANDROID_MICROPHONE))
++if (GSTREAMER_MEDIA_PLAYER)
+     cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+-    project(SampleApp LANGUAGES CXX)
++     project(SampleApp LANGUAGES CXX)
+ 
+     include(../build/BuildDefaults.cmake)
+ 
+diff --git a/modules/Alexa/SampleApp/include/SampleApp/SampleApplication.h b/modules/Alexa/SampleApp/include/SampleApp/SampleApplication.h
+index c2ecd93..beffa3b 100644
+--- a/modules/Alexa/SampleApp/include/SampleApp/SampleApplication.h
++++ b/modules/Alexa/SampleApp/include/SampleApp/SampleApplication.h
+@@ -145,7 +145,7 @@ public:
+             alexaClientSDK::avsCommon::sdkInterfaces::ChannelVolumeInterface::Type speakerType);
+     };
+ 
+-private:
++protected:
+     /**
+      * Initialize a SampleApplication.
+      *
+diff --git a/modules/Alexa/SampleApp/src/CMakeLists.txt b/modules/Alexa/SampleApp/src/CMakeLists.txt
+index b9f45ff..298f4ae 100644
+--- a/modules/Alexa/SampleApp/src/CMakeLists.txt
++++ b/modules/Alexa/SampleApp/src/CMakeLists.txt
+@@ -40,6 +40,7 @@ IF (HAS_EXTERNAL_MEDIA_PLAYER_ADAPTERS)
+ ENDIF()
+ 
+ add_library(SmartScreenSampleAppLib SHARED ${SampleApp_SOURCES})
++set_property(TARGET SmartScreenSampleAppLib PROPERTY POSITION_INDEPENDENT_CODE ON)
+ 
+ target_include_directories(SmartScreenSampleAppLib PUBLIC
+     "${SampleApp_SOURCE_DIR}/include"
+@@ -147,8 +148,6 @@ if(NOT YOGA_LIB_DIR)
+ endif()
+ 
+ 
+-add_executable(SampleApp main.cpp)
+-target_link_libraries(SampleApp SmartScreenSampleAppLib)
+-
+ # install target
+-asdk_install_targets(SmartScreenSampleAppLib TRUE)
+\ No newline at end of file
++asdk_install_targets(SmartScreenSampleAppLib TRUE)
++#asdk_install()
+diff --git a/modules/Alexa/SampleApp/src/SampleApplication.cpp b/modules/Alexa/SampleApp/src/SampleApplication.cpp
+index b03bf4f..b18918f 100644
+--- a/modules/Alexa/SampleApp/src/SampleApplication.cpp
++++ b/modules/Alexa/SampleApp/src/SampleApplication.cpp
+@@ -1486,6 +1486,7 @@ bool SampleApplication::initialize(
+         std::make_shared<alexaSmartScreenSDK::sssdkCommon::NullMicrophone>(sharedDataStream);
+ #else
+     ACSDK_CRITICAL(LX("No microphone module provided!"));
++    std::shared_ptr<applicationUtilities::resources::audio::MicrophoneInterface> micWrapper = nullptr;
+     return false;
+ #endif
+     if (!micWrapper) {
+diff --git a/modules/Alexa/build/cmake/PrepareInstall.cmake b/modules/Alexa/build/cmake/PrepareInstall.cmake
+index d56c752..62e4b31 100644
+--- a/modules/Alexa/build/cmake/PrepareInstall.cmake
++++ b/modules/Alexa/build/cmake/PrepareInstall.cmake
+@@ -13,12 +13,13 @@ endfunction()
+ function(asdk_install)
+     SET(PKG_CONFIG_LIBS "${PKG_CONFIG_LIBS} -l${PROJECT_NAME}" CACHE INTERNAL "" FORCE)
+     install(TARGETS ${PROJECT_NAME} DESTINATION "${ASDK_LIB_INSTALL_DIR}")
+-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/include" DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}")
++    install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}/include/SmartScreen/")
+ endfunction()
+ 
+ # Function to install an interface library
+ function(asdk_install_interface)
+-    install(DIRECTORY include DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}")
++    install(TARGETS ${PROJECT_NAME} DESTINATION "${ASDK_LIB_INSTALL_DIR}")
++    install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}/include/SmartScreen/")
+ endfunction()
+ 
+ # Function to install the given set of targets
+@@ -39,7 +40,7 @@ function(asdk_install_multiple path_list)
+     SET(PKG_CONFIG_LIBS "${PKG_CONFIG_LIBS} -l${PROJECT_NAME}" CACHE INTERNAL "" FORCE)
+     install(TARGETS ${PROJECT_NAME} DESTINATION "${ASDK_LIB_INSTALL_DIR}")
+     foreach(path IN LISTS path_list)
+-        install(DIRECTORY ${path} DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}")
++        install(DIRECTORY "${path}/" DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}/include/SmartScreen")
+     endforeach()
+ endfunction()
+ 
+@@ -62,7 +63,7 @@ if(BLUETOOTH_BLUEZ)
+ endif()
+ SET(PKG_CONFIG_LIBS         "-L\${libdir}" CACHE INTERNAL "" FORCE)
+ SET(PKG_CONFIG_LIBDIR       "\${prefix}/lib")
+-SET(PKG_CONFIG_INCLUDEDIR   "\${prefix}/include")
++SET(PKG_CONFIG_INCLUDEDIR   "\${prefix}/include/SmartScreen")
+ SET(PKG_CONFIG_CFLAGS       "-I\${includedir}")
+ 
+ # Set library and header files install directory
+-- 
+2.29.0
+
+diff --git a/modules/Alexa/CMakeLists.txt b/modules/Alexa/CMakeLists.txt
+index 93fc4c0..b873aff 100644
+--- a/modules/Alexa/CMakeLists.txt
++++ b/modules/Alexa/CMakeLists.txt
+@@ -93,7 +93,6 @@ add_subdirectory("APLClientLibrary")
+ if (NOT MSVC)
+ 	# For UWP SampleApp files are built as part of UWPSampleApp
+ 	add_subdirectory("SampleApp")
+-	add_subdirectory("doc")
+ endif()
+ add_subdirectory("Utils")
+ add_subdirectory("SSSDKCommon")

@@ -1,3 +1,6 @@
+Material from avs-device-sdk and alexa-smart-screen-sdk is Copyright Amazon.com, Inc. or its affiliates,
+and licensed under the Apache License, Version 2.0
+
 From 376ad5c8a6c1952b07f0b3e2097dbe75fb7e9ce6 Mon Sep 17 00:00:00 2001
 From: Ganesh prasad Sahu <GaneshPrasad_Sahu@comcast.com>
 Date: Mon, 30 Nov 2020 11:32:29 +0000
@@ -64,13 +67,13 @@ index 82452af..f57ffb0 100644
  #include <AVSCommon/Utils/Logger/LoggerSinkManager.h>
  #include <AVSCommon/Utils/Network/InternetConnectionMonitor.h>
 -#include <Alerts/Storage/SQLiteAlertStorage.h>
-+#include  <Alerts/Storage/SQLiteAlertStorage.h>
++#include  <acsdkAlerts/Storage/SQLiteAlertStorage.h>
  #include <Audio/AudioFactory.h>
  #include <CBLAuthDelegate/CBLAuthDelegate.h>
  #include <CBLAuthDelegate/SQLiteCBLAuthDelegateStorage.h>
  #include <ContextManager/ContextManager.h>
 -#include <Notifications/SQLiteNotificationsStorage.h>
-+#include  <Notifications/SQLiteNotificationsStorage.h>
++#include  <acsdkNotifications/SQLiteNotificationsStorage.h>
  #include <SQLiteStorage/SQLiteMiscStorage.h>
  #include <Settings/Storage/SQLiteDeviceSettingStorage.h>
  

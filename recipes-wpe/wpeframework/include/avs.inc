@@ -16,12 +16,12 @@ AVS_PLATFORM  ?= "rpi3"
 AVS_DATA_PATH ?= "/usr/share/WPEFramework"
 AVS_LOG_LEVEL ?= "DEBUG9"
 ## "PORTAUDIO" OR "BluetoothRemoteControl"
-AVS_AUDIOSOURCE ?= "BluetoothRemoteControl"
-AVS_PORTAUDIO_SUPPORT ?= "OFF"
-AVS_SMART_SCREEN_SUPPORT ?= "OFF"
-AVS_ENABLE_SMART_SCREEN ?= "false"
-AVS_KWD_SUPPORT ?= "OFF"
-AVS_ENABLE_KWD ?= "false"
+AVS_AUDIOSOURCE ?= "PORTAUDIO"
+AVS_PORTAUDIO_SUPPORT ?= "ON"
+AVS_SMART_SCREEN_SUPPORT ?= "ON"
+AVS_ENABLE_SMART_SCREEN ?= "true"
+AVS_KWD_SUPPORT ?= "ON"
+AVS_ENABLE_KWD ?= "true"
 
 #---------------------------------------------------#
 PACKAGECONFIG[avs]     = " \

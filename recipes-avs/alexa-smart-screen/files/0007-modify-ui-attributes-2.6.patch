@@ -1,0 +1,38 @@
+From 4ac6d899cd497f04227d1cc5d4cbe73187480dae Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <ganeshprasad_sahu@comcast.com>
+Date: Sat, 1 May 2021 19:00:35 +0000
+Subject: [PATCH 1/1] modify ui attributes
+
+---
+ modules/GUI/js/src/components/SampleHome.tsx       |   2 +-
+ modules/GUI/js/src/components/sampleHome.css       |   1 +
+ 2 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/modules/GUI/js/src/components/SampleHome.tsx b/modules/GUI/js/src/components/SampleHome.tsx
+index 021218e..40f2c84 100644
+--- a/modules/GUI/js/src/components/SampleHome.tsx
++++ b/modules/GUI/js/src/components/SampleHome.tsx
+@@ -22,7 +22,7 @@ export class SampleHome extends React.Component<ISampleHomeProps, any> {
+ 
+             switch (this.props.deviceAppConfig.audioInputInitiator) {
+                 case AudioInputInitiator.PRESS_AND_HOLD : {
+-                    howToTalkString = 'Press and Hold \"' + talkKey + '\" then Speak';
++                    howToTalkString = ' ';
+                     break;
+                 }
+                 case AudioInputInitiator.TAP : {
+diff --git a/modules/GUI/js/src/components/sampleHome.css b/modules/GUI/js/src/components/sampleHome.css
+index db3fb08..1c67aaf 100644
+--- a/modules/GUI/js/src/components/sampleHome.css
++++ b/modules/GUI/js/src/components/sampleHome.css
+@@ -12,6 +12,7 @@
+     background-position: center;
+     background-repeat: no-repeat;
+     background-size: contain;
++    opacity: 0.0;
+     width: 50%;
+     height: 10%;
+ }
+-- 
+2.14.2
+

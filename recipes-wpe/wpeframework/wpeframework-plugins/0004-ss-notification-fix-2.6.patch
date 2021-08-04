@@ -1,0 +1,48 @@
+From 0ab5b6bf6c74f55f81a96c4f6d09ea9d537d9216 Mon Sep 17 00:00:00 2001
+From: sramak943 <sudharsan.ramakrishnan@comcast.com>
+Date: Fri, 18 Jun 2021 12:05:44 +0000
+Subject: [PATCH] ss notification fix
+
+---
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+index a429df7..947d903 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+@@ -27,8 +27,8 @@
+ #include <AVSCommon/SDKInterfaces/MessageObserverInterface.h>
+ #include <AVSCommon/SDKInterfaces/CapabilitiesObserverInterface.h>
+ #include <AVSCommon/SDKInterfaces/TemplateRuntimeObserverInterface.h>
+-#include <AVSCommon/SDKInterfaces/AudioPlayerObserverInterface.h>
+-
++//#include <AVSCommon/SDKInterfaces/AudioPlayerObserverInterface.h>
++#include <acsdkAudioPlayerInterfaces/AudioPlayerObserverInterface.h>
+ #if defined(ENABLE_SMART_SCREEN_SUPPORT)
+ #include <SmartScreen/SampleApp/SampleApplication.h>
+ #endif
+@@ -45,7 +45,8 @@ namespace Plugin {
+           public alexaClientSDK::registrationManager::RegistrationObserverInterface,
+           public alexaClientSDK::avsCommon::sdkInterfaces::DialogUXStateObserverInterface,
+ 		  public alexaClientSDK::avsCommon::sdkInterfaces::TemplateRuntimeObserverInterface,
+-          public alexaClientSDK::avsCommon::sdkInterfaces::AudioPlayerObserverInterface,
++          public alexaClientSDK::acsdkAudioPlayerInterfaces::AudioPlayerObserverInterface,
++          //public alexaClientSDK::avsCommon::sdkInterfaces::AudioPlayerObserverInterface,
+ 		  public alexaClientSDK::avsCommon::sdkInterfaces::MessageObserverInterface {
+     public:
+         static std::unique_ptr<ThunderInputManager> create(std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> interactionManager);
+@@ -98,7 +99,9 @@ namespace Plugin {
+ 
+     private:
+         ThunderInputManager(std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> interactionManager);
+-
++#if defined(ENABLE_SMART_SCREEN_SUPPORT)
++         ThunderInputManager(std::shared_ptr<alexaSmartScreenSDK::sampleApp::gui::GUIManager> guiManager);
++#endif
+         void onAuthStateChange(AuthObserverInterface::State newState, AuthObserverInterface::Error newError) override;
+ 		void onCapabilitiesStateChange (CapabilitiesDelegateObserverInterface::State newState, CapabilitiesDelegateObserverInterface::Error newError, const std::vector< std::string > &addedOrUpdatedEndpointIds, const std::vector< std::string > &deletedEndpointIds) override;
+ 
+-- 
+2.24.0
+

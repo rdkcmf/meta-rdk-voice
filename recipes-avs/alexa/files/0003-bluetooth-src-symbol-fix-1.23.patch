@@ -1,0 +1,57 @@
+From 5b4f5b7aa0c5327b0840fe9a782889fd32cafb8d Mon Sep 17 00:00:00 2001
+From: sramak943 <sudharsan.ramakrishnan@comcast.com>
+Date: Fri, 9 Jul 2021 13:52:18 +0000
+Subject: [PATCH] bluetooth src symbol fix
+
+---
+ .../acsdkBluetooth/include/acsdkBluetooth/Bluetooth.h         | 4 ++--
+ capabilities/Bluetooth/acsdkBluetooth/src/Bluetooth.cpp       | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/capabilities/Bluetooth/acsdkBluetooth/include/acsdkBluetooth/Bluetooth.h b/capabilities/Bluetooth/acsdkBluetooth/include/acsdkBluetooth/Bluetooth.h
+index ed5ae61ac8..1b436f1c14 100644
+--- a/capabilities/Bluetooth/acsdkBluetooth/include/acsdkBluetooth/Bluetooth.h
++++ b/capabilities/Bluetooth/acsdkBluetooth/include/acsdkBluetooth/Bluetooth.h
+@@ -161,7 +161,7 @@ public:
+         PENDING_INTERNAL,
+ 
+         /// Focus in Bluetooth class is lost because another class has taken focus.
+-        EXTERNAL
++        STATE_EXTERNAL
+     };
+ 
+     /**
+@@ -1089,7 +1089,7 @@ inline std::string focusTransitionStateToString(Bluetooth::FocusTransitionState
+             return "INTERNAL";
+         case Bluetooth::FocusTransitionState::PENDING_INTERNAL:
+             return "PENDING_INTERNAL";
+-        case Bluetooth::FocusTransitionState::EXTERNAL:
++        case Bluetooth::FocusTransitionState::STATE_EXTERNAL:
+             return "EXTERNAL";
+     }
+ 
+diff --git a/capabilities/Bluetooth/acsdkBluetooth/src/Bluetooth.cpp b/capabilities/Bluetooth/acsdkBluetooth/src/Bluetooth.cpp
+index a6175c51ac..97994dad2e 100644
+--- a/capabilities/Bluetooth/acsdkBluetooth/src/Bluetooth.cpp
++++ b/capabilities/Bluetooth/acsdkBluetooth/src/Bluetooth.cpp
+@@ -1271,7 +1271,7 @@ void Bluetooth::executeEnterNone() {
+         return;
+     }
+ 
+-    if (FocusTransitionState::EXTERNAL == m_focusTransitionState) {
++    if (FocusTransitionState::STATE_EXTERNAL == m_focusTransitionState) {
+         auto a2dpSource = getService<A2DPSourceInterface>(m_activeA2DPDevice);
+         /**
+          * Only disconnect if the remote device is a Bluetooth audio source that is streaming audio and
+@@ -1344,7 +1344,7 @@ void Bluetooth::onFocusChanged(FocusState newFocus, MixingBehavior behavior) {
+         if (FocusState::NONE == newFocus && FocusTransitionState::PENDING_INTERNAL == m_focusTransitionState) {
+             m_focusTransitionState = FocusTransitionState::INTERNAL;
+         } else if (FocusState::NONE != newFocus && FocusTransitionState::PENDING_INTERNAL != m_focusTransitionState) {
+-            m_focusTransitionState = FocusTransitionState::EXTERNAL;
++            m_focusTransitionState = FocusTransitionState::STATE_EXTERNAL;
+         }
+ 
+         m_focusState = newFocus;
+-- 
+2.24.0
+

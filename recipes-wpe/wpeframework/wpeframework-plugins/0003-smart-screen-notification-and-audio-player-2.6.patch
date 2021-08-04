@@ -1,0 +1,258 @@
+From e320e79c1dcf6b9c08ab34fcaa16cbd08d214659 Mon Sep 17 00:00:00 2001
+From: sramak943 <sudharsan.ramakrishnan@comcast.com>
+Date: Fri, 18 Jun 2021 11:06:07 +0000
+Subject: [PATCH] smart screen notification and audio player
+
+---
+ WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt          |   2 +-
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp | 112 ++++++++++++++++++++++---
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h   |  21 ++++-
+ WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt        |   1 +
+ 4 files changed, 134 insertions(+), 23 deletions(-)
+
+diff --git a/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt b/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt
+index 22c311f..371d46b 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt
++++ b/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt
+@@ -26,7 +26,7 @@ set(MODULE_NAME AVSDevice)
+ set(WPEFRAMEWORK_PLUGIN_AVS_AVSDEVICE_SOURCES)
+ list(APPEND WPEFRAMEWORK_PLUGIN_AVS_AVSDEVICE_SOURCES
+     AVSDevice.cpp
+-    ThunderInputManager.cpp
++    ../ThunderInputManager.cpp
+     ../Module.cpp
+     ../ThunderLogger.cpp
+ )
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
+index adad432..3ab1847 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
+@@ -25,6 +25,33 @@ namespace Plugin {
+     using namespace alexaClientSDK::avsCommon::sdkInterfaces;
+     using namespace WPEFramework::Exchange;
+ 
++ #if defined(ENABLE_SMART_SCREEN_SUPPORT)
++ 
++     std::unique_ptr<ThunderInputManager>
++ ThunderInputManager::create(std::shared_ptr<alexaSmartScreenSDK::sampleApp::gui::GUIManager> guiManager)
++     {
++             if (!guiManager) {
++                     TRACE_GLOBAL(AVSClient, (_T("Invalid guiManager passed to ThunderInputManager")));
++                     return nullptr;
++                 }
++                 return std::unique_ptr<ThunderInputManager>(new ThunderInputManager(guiManager));
++             }
++             
++             ThunderInputManager::ThunderInputManager(std::shared_ptr<alexaSmartScreenSDK::sampleApp::gui::GUIManager>
++         guiManager)
++                 : m_limitedInteraction{ false }
++                , m_playerState{alexaClientSDK::avsCommon::avs::PlayerActivity::IDLE}
++                 , m_interactionManager{ nullptr }
++                 , m_guiManager{ nullptr }
++                 , m_controller{ WPEFramework::Core::ProxyType<AVSController>::Create(this) }
++             {
++                     TRACE_L1("Parsing VoiceToApps LEDs...");
++                     m_vtaFlag = vta.ioParse();
++                 }
++                 
++ #endif
++
++
+     std::unique_ptr<ThunderInputManager> ThunderInputManager::create(std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> interactionManager)
+     {
+         if (!interactionManager) {
+@@ -38,11 +65,66 @@ namespace Plugin {
+         : m_limitedInteraction{ false }
+         , m_interactionManager{ interactionManager }
+         , m_controller{ WPEFramework::Core::ProxyType<AVSController>::Create(this) }
++        , m_playerState{alexaClientSDK::avsCommon::avs::PlayerActivity::IDLE}
+     {
+         TRACE_L1("Parsing VoiceToApps LEDs...");
+         m_vtaFlag = vta.ioParse();
+     }
+ 
++       // to check if audioPlayer is in playing/buffering/paused state
++   bool ThunderInputManager::isAudioPlaying(void)
++   {
++       using namespace alexaClientSDK::avsCommon::avs;
++       bool state=(m_playerState == PlayerActivity::PLAYING) || 
++           (m_playerState == PlayerActivity::BUFFER_UNDERRUN) ||
++           (m_playerState == PlayerActivity::PAUSED);
++                std::cout << __func__ << "Current Aud State =" << state <<std::endl;
++                return state;
++   }
++  
++   void ThunderInputManager::onPlayerActivityChanged (alexaClientSDK::avsCommon::avs::PlayerActivity state, const Context &context) 
++
++       {
++                m_playerState = state; 
++       std::cout << " onPlayerActivityChanged:  State change called ";
++      using namespace skillmapper;
++           using namespace alexaClientSDK::avsCommon::avs;
++       AudioPlayerState smState;
++       switch (state) {
++       case PlayerActivity::IDLE:
++           std::cout << "idle ";
++           smState = AudioPlayerState::IDLE; 
++           break;
++       case PlayerActivity::PLAYING:
++           std::cout << "playing ";
++           smState = AudioPlayerState::PLAYING; 
++           break;
++       case PlayerActivity::STOPPED:
++          std::cout << "stopped" ;
++           smState = AudioPlayerState::STOPPED; 
++           break;
++       case PlayerActivity::PAUSED:
++           std::cout << "paused ";
++           smState = AudioPlayerState::PAUSED; 
++           break;
++       case PlayerActivity::BUFFER_UNDERRUN:
++           std::cout << "bufferring ";
++           smState = AudioPlayerState::BUFFER_UNDERRUN; 
++           break;
++       case PlayerActivity::FINISHED:
++           std::cout << "finished ";
++           smState = AudioPlayerState::FINISHED; 
++           break;
++       default:
++           std::cout << "unknown ";
++           smState = AudioPlayerState::UNKNOWN; 
++       }
++
++       std::cout << std::endl;
++       vta.handleAudioPlayerStateChangeNotification(smState);
++   }
++
++
+     void ThunderInputManager::onDialogUXStateChanged(DialogUXState newState)
+     {
+         if (m_controller) {
+@@ -107,24 +189,30 @@ namespace Plugin {
+     {
+         IAVSController::INotification::dialoguestate dialoguestate;
+         bool isStateHandled = true;
+-
++        using namespace skillmapper;
++        bool smartScreenEnabled = 0;
++        //bool (*audStateCb)(void)= &ThunderInputManager::isAudioPlaying;
++       
++#if defined(ENABLE_SMART_SCREEN_SUPPORT)
++        smartScreenEnabled = 1;
++#endif
++        if (! m_parent.m_vtaFlag ) {
++            TRACE_L1("VoiceToApps vtaFlag not initialized during state change...");
++        }
++    
++   
+         switch (newState) {
+         case DialogUXState::IDLE:
+-            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_IDLE, false);
+-            if (! m_parent.m_vtaFlag ) {
+-                TRACE_L1("VoiceToApps vtaFlag not initialized during state change...");
+-            }
++            m_parent.vta.handleSDKStateChangeNotification(VoiceSDKState::VTA_IDLE, smartScreenEnabled,m_parent.isAudioPlaying() );
++            std::cout << "Calling Smart screen notification with idle status " << std::endl;
+             dialoguestate = IAVSController::INotification::IDLE;
+             break;
+         case DialogUXState::LISTENING:
+-            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_LISTENING, false);
+-            if (! m_parent.m_vtaFlag ) {
+-                TRACE_L1("VoiceToApps vtaFlag not initialized during state change...");
+-            }
++            m_parent.vta.handleSDKStateChangeNotification(VoiceSDKState::VTA_LISTENING, smartScreenEnabled,m_parent.isAudioPlaying());
+             dialoguestate = IAVSController::INotification::LISTENING;
+             break;
+         case DialogUXState::EXPECTING:
+-            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_EXPECTING, false);
++            m_parent.vta.handleSDKStateChangeNotification(VoiceSDKState::VTA_EXPECTING, smartScreenEnabled, m_parent.isAudioPlaying());
+ #ifdef FILEAUDIO
+             if ( m_parent.vta.invocationMode ){
+                  m_parent.vta.fromExpecting=true;
+@@ -134,11 +222,11 @@ namespace Plugin {
+             dialoguestate = IAVSController::INotification::EXPECTING;
+             break;
+         case DialogUXState::THINKING:
+-            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_THINKING, false);
++            m_parent.vta.handleSDKStateChangeNotification(VoiceSDKState::VTA_THINKING, smartScreenEnabled, m_parent.isAudioPlaying() );
+             dialoguestate = IAVSController::INotification::THINKING;
+             break;
+         case DialogUXState::SPEAKING:
+-            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_SPEAKING, false);
++            m_parent.vta.handleSDKStateChangeNotification(VoiceSDKState::VTA_SPEAKING, smartScreenEnabled,m_parent.isAudioPlaying() );
+ #ifdef FILEAUDIO
+             if ( m_parent.vta.fromExpecting ) {
+                  m_parent.vta.fromExpecting=false;
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+index 96e3cbc..a429df7 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+@@ -27,7 +27,12 @@
+ #include <AVSCommon/SDKInterfaces/MessageObserverInterface.h>
+ #include <AVSCommon/SDKInterfaces/CapabilitiesObserverInterface.h>
+ #include <AVSCommon/SDKInterfaces/TemplateRuntimeObserverInterface.h>
+- 
++#include <AVSCommon/SDKInterfaces/AudioPlayerObserverInterface.h>
++
++#if defined(ENABLE_SMART_SCREEN_SUPPORT)
++#include <SmartScreen/SampleApp/SampleApplication.h>
++#endif
++
+ #include <atomic>
+ 
+ namespace WPEFramework {
+@@ -40,12 +45,16 @@ namespace Plugin {
+           public alexaClientSDK::registrationManager::RegistrationObserverInterface,
+           public alexaClientSDK::avsCommon::sdkInterfaces::DialogUXStateObserverInterface,
+ 		  public alexaClientSDK::avsCommon::sdkInterfaces::TemplateRuntimeObserverInterface,
++          public alexaClientSDK::avsCommon::sdkInterfaces::AudioPlayerObserverInterface,
+ 		  public alexaClientSDK::avsCommon::sdkInterfaces::MessageObserverInterface {
+     public:
+         static std::unique_ptr<ThunderInputManager> create(std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> interactionManager);
++        #if defined(ENABLE_SMART_SCREEN_SUPPORT)
++        static std::unique_ptr<ThunderInputManager> create(std::shared_ptr<alexaSmartScreenSDK::sampleApp::gui::GUIManager> guiManager);
++        #endif
+ 	skillmapper::voiceToApps vta;
+ 	int m_vtaFlag;
+-
++    alexaClientSDK::avsCommon::avs::PlayerActivity m_playerState;
+         class AVSController : public WPEFramework::Exchange::IAVSController {
+         public:
+             AVSController(const AVSController&) = delete;
+@@ -73,7 +82,10 @@ namespace Plugin {
+         void onLogout() override;
+         void onDialogUXStateChanged(DialogUXState newState) override;
+ 		void receive(const std::string& contextId, const std::string& message) override;
+-		
++
++        //audio Player 
++        void onPlayerActivityChanged (alexaClientSDK::avsCommon::avs::PlayerActivity state, const Context &context) override;
++        bool isAudioPlaying(void); 
+ 		//template card
+         void renderTemplateCard(const std::string& jsonPayload, alexaClientSDK::avsCommon::avs::FocusState focusState) override;
+         void    clearTemplateCard () override; 
+@@ -92,6 +104,9 @@ namespace Plugin {
+ 
+         WPEFramework::Core::ProxyType<AVSController> m_controller;
+         std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> m_interactionManager;
++       #if defined(ENABLE_SMART_SCREEN_SUPPORT)
++               std::shared_ptr<alexaSmartScreenSDK::sampleApp::gui::GUIManager> m_guiManager;
++       #endif
+         std::atomic_bool m_limitedInteraction;
+     };
+ 
+diff --git a/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt b/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt
+index 79a0493..d85207e 100644
+--- a/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt
++++ b/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt
+@@ -34,6 +34,7 @@ list(APPEND WPEFRAMEWORK_PLUGIN_AVS_SMARTSCREEN_SOURCES
+     SmartScreen.cpp
+     ../Module.cpp
+     ../ThunderLogger.cpp
++    ../ThunderInputManager.cpp
+ )
+ 
+ if(PLUGIN_AVS_ENABLE_KWD_SUPPORT)
+-- 
+2.24.0
+

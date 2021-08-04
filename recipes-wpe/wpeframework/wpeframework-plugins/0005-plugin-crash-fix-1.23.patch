@@ -1,0 +1,24 @@
+From 47eba55893f6fee020c6dc7d16f458c640b37bde Mon Sep 17 00:00:00 2001
+From: sramak943 <sudharsan.ramakrishnan@comcast.com>
+Date: Mon, 21 Jun 2021 08:52:19 +0000
+Subject: [PATCH] plugin crash fix
+
+---
+ WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+index 98d2d7c..9c0463f 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+@@ -921,6 +921,7 @@ std::shared_ptr<alexaClientSDK::defaultClient::DefaultClient> client =
+         }
+ 
+         streams.push_back(configStream);
++        return true;
+     }
+ 
+     bool AVSDevice::Deinitialize()
+-- 
+2.24.0
+

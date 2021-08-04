@@ -14,10 +14,14 @@ OECMAKE_GENERATOR = "Unix Makefiles"
 
 BASE_URI ?= "git://github.com/alexa/apl-core-library.git;branch=master;protocol=https;name=apl-core-lib"
 SRC_URI   = "${BASE_URI}"
-SRC_URI += "file://0001-add-install-method-with-pic-support-for-apl-and-yoga.patch"
 
-#v1.2
-SRCREV_apl-core-lib ="f0a99732c530fde9d9fac97c2d008c012594fc51"
+#v1.6
+#SRCREV_apl-core-lib ="11e1d958f0dba15d02ab7c1bdb29198b3dbdb685"
+
+#v1.5.1
+#SRCREV_apl-core-lib ="5707cb07f07c788c24cc1064f6164e20bd0bfec6"
+#v1.5
+SRCREV_apl-core-lib ="d80bb154bec280b88640c9c917283277ce0394e2"
 
 LDFLAGS += "-pthread"
 
@@ -31,7 +35,7 @@ inherit pkgconfig cmake
 RDEPENDS_${PN} += "bash perl libwebsockets"
 DEPENDS = "curl nghttp2 sqlite3 gstreamer1.0-plugins-base cjson"
 
-EXTRA_OECMAKE = "-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+EXTRA_OECMAKE = "-DCMAKE_POSITION_INDEPENDENT_CODE=ON -DENABLE_PIC=ON \
 "
 
 do_install_append() {
@@ -48,6 +52,7 @@ do_install_append() {
 
     install -d ${D}${libdir}/pkgconfig
     find ${WORKDIR}/build -iname 'apl.pc' -exec cp {} ${D}${libdir}/pkgconfig \;
+    rm -rf ${D}${includedir}/rapidjson
 }
 
 BBCLASSEXTEND = "native"

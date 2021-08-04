@@ -1,0 +1,24 @@
+From e653e85597f916206ec7c6d375a97bb497a737f0 Mon Sep 17 00:00:00 2001
+From: sudharsan ramakrishnan <sudharsan.ramakrishnan@comcast.com>
+Date: Mon, 12 Jul 2021 07:59:30 +0000
+Subject: [PATCH] plugin crash fix ss
+
+---
+ WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
+index 3f633c7..f4da0af 100644
+--- a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
++++ b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
+@@ -967,6 +967,7 @@ namespace Plugin {
+         }
+ 
+         streams.push_back(configStream);
++        return true;
+     }
+ 
+     bool SmartScreen::Deinitialize()
+-- 
+2.24.0
+

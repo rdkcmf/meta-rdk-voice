@@ -1,0 +1,28 @@
+From ebe2d9e12ff39f8f66537f2ee51e7d7d786bd568 Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <ganeshprasad_sahu@comcast.com>
+Date: Fri, 2 Apr 2021 17:33:06 +0000
+Subject: [PATCH 2/3] Allow disabling GUIClient and set install path
+
+---
+ modules/GUI/CMakeLists.txt | 5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/modules/GUI/CMakeLists.txt b/modules/GUI/CMakeLists.txt
+index 0e53cbc..7460103 100644
+--- a/modules/GUI/CMakeLists.txt
++++ b/modules/GUI/CMakeLists.txt
+@@ -13,10 +13,11 @@ else()
+     set(USE_UWP_CLIENT_VALUE "false")
+ endif()
+
++set(JS_GUICLIENT_INSTALL_PATH "" CACHE STRING "The install path")
+ add_custom_target(GUIClient ALL
+         COMMAND "npm" "install"
+         COMMAND "npm" "run" "build" "--"
+-            "--output-path" "${CMAKE_CURRENT_BINARY_DIR}"
++            "--output-path" "${JS_GUICLIENT_INSTALL_PATH}"
+             "--env" "DISABLE_WEBSOCKET_SSL=${DISABLE_WEBSOCKET_SSL_VALUE}"
+             "--env" "USE_UWP_CLIENT=${USE_UWP_CLIENT_VALUE}"
+-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/js")
+\ No newline at end of file
++        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/js")

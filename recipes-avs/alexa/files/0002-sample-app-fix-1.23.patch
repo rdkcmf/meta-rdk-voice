@@ -1,0 +1,91 @@
+From 2e804cda61b2eb67a9f6d891b7edc3d6634152fd Mon Sep 17 00:00:00 2001
+From: sramak943 <sudharsan.ramakrishnan@comcast.com>
+Date: Fri, 9 Jul 2021 13:51:19 +0000
+Subject: [PATCH] sample app fix
+
+---
+ SampleApp/CMakeLists.txt                        | 4 ++--
+ SampleApp/include/SampleApp/SampleApplication.h | 2 +-
+ SampleApp/src/SampleApplication.cpp             | 1 +
+ cmakeBuild/cmake/PrepareInstall.cmake           | 6 +++---
+ 4 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/SampleApp/CMakeLists.txt b/SampleApp/CMakeLists.txt
+index 92b1ddd30c..ed113551fe 100644
+--- a/SampleApp/CMakeLists.txt
++++ b/SampleApp/CMakeLists.txt
+@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+ 
+ set(VALID FALSE)
+ 
+-if (PORTAUDIO AND (GSTREAMER_MEDIA_PLAYER OR CUSTOM_MEDIA_PLAYER))
++if (GSTREAMER_MEDIA_PLAYER)
+     set(VALID TRUE)
+ elseif (ANDROID_MEDIA_PLAYER AND ANDROID_MICROPHONE)
+     set(VALID TRUE)
+@@ -19,4 +19,4 @@ if (VALID)
+     add_subdirectory("src")
+ else()
+     message("To build the Sample App, please enable microphone and media player modules.")
+-endif()
+\ No newline at end of file
++endif()
+diff --git a/SampleApp/include/SampleApp/SampleApplication.h b/SampleApp/include/SampleApp/SampleApplication.h
+index fc1ca13bc3..15cc418272 100644
+--- a/SampleApp/include/SampleApp/SampleApplication.h
++++ b/SampleApp/include/SampleApp/SampleApplication.h
+@@ -135,7 +135,7 @@ public:
+             avsCommon::sdkInterfaces::ChannelVolumeInterface::Type speakerType);
+     };
+ 
+-private:
++protected:
+     /**
+      * Initialize a SampleApplication.
+      *
+diff --git a/SampleApp/src/SampleApplication.cpp b/SampleApp/src/SampleApplication.cpp
+index d4d5f3d434..85212b5d6a 100644
+--- a/SampleApp/src/SampleApplication.cpp
++++ b/SampleApp/src/SampleApplication.cpp
+@@ -1436,6 +1436,7 @@ bool SampleApplication::initialize(
+     std::shared_ptr<applicationUtilities::resources::audio::MicrophoneInterface> micWrapper =
+         audioInjector->getMicrophone(sharedDataStream, compatibleAudioFormat);
+ #else
++	std::shared_ptr<applicationUtilities::resources::audio::MicrophoneInterface> micWrapper = nullptr;
+     ACSDK_CRITICAL(LX("No microphone module provided!"));
+     return false;
+ #endif
+diff --git a/cmakeBuild/cmake/PrepareInstall.cmake b/cmakeBuild/cmake/PrepareInstall.cmake
+index bd829fd21f..cf33e96a0e 100644
+--- a/cmakeBuild/cmake/PrepareInstall.cmake
++++ b/cmakeBuild/cmake/PrepareInstall.cmake
+@@ -7,7 +7,7 @@
+ function(asdk_install_lib)
+     SET(PKG_CONFIG_LIBS "${PKG_CONFIG_LIBS} -l${PROJECT_NAME}" CACHE INTERNAL "" FORCE)
+     asdk_set_soname(${PROJECT_NAME})
+-    install(TARGETS ${PROJECT_NAME} DESTINATION "${ASDK_LIB_INSTALL_DIR}")
++    install(TARGETS ${PROJECT_NAME} DESTINATION "${ASDK_LIB_INSTALL_DIR}/include/AVS/")
+ endfunction()
+ 
+ # Function to install the target
+@@ -15,7 +15,7 @@ function(asdk_install)
+     SET(PKG_CONFIG_LIBS "${PKG_CONFIG_LIBS} -l${PROJECT_NAME}" CACHE INTERNAL "" FORCE)
+     asdk_set_soname(${PROJECT_NAME})
+     install(TARGETS ${PROJECT_NAME} DESTINATION "${ASDK_LIB_INSTALL_DIR}")
+-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/include" DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}")
++    install(DIRECTORY "${PROJECT_SOURCE_DIR}/include" DESTINATION "${ASDK_INCLUDE_INSTALL_DIR}/include/AVS/")
+ endfunction()
+ 
+ # Function to install an interface library
+@@ -108,7 +108,7 @@ if(BLUETOOTH_BLUEZ)
+ endif()
+ SET(PKG_CONFIG_LIBS         "-L\${libdir}" CACHE INTERNAL "" FORCE)
+ SET(PKG_CONFIG_LIBDIR       "\${prefix}/lib")
+-SET(PKG_CONFIG_INCLUDEDIR   "\${prefix}/include")
++SET(PKG_CONFIG_INCLUDEDIR   "\${prefix}/include/AVS")
+ SET(PKG_CONFIG_CFLAGS       "-I\${includedir}")
+ 
+ # Set library and header files install directory
+-- 
+2.24.0
+

@@ -11,15 +11,15 @@ OECMAKE_GENERATOR = "Unix Makefiles"
 
 SRC_URI = "git://github.com/alexa/avs-device-sdk.git;branch=master;protocol=https;name=alexa-device-sdk;destsuffix=git"
 SRC_URI  += "file://0001-gst-adjust-rank.patch"
+SRC_URI += "file://0002-sample-app-fix-1.23.patch"
+SRC_URI += "file://0003-bluetooth-src-symbol-fix-1.23.patch"
 
-#1.15
-SRCREV_alexa-device-sdk = "2e9428e9dfc9fa7c3b4bfd5106323f8c2f1643c9"
+#1.23.0
+SRCREV_alexa-device-sdk = "f2dab7ee26e59caa41fa861e04df256fa8563ef1"
 SRCREV ="${AUTOREV}"
 
 #To support AVS plugin
 SRC_URI += "file://0001-prevent_crashes_on_rpi.patch;striplevel=1"
-SRC_URI += "file://0002-Synchronise_rapidjson_version_with_smart_screen.patch;striplevel=1"
-SRC_URI += "file://0003-Build-the-SampleApplication-as-library.patch;striplevel=2"
 
 LDFLAGS += "-pthread"
 INSANE_SKIP_${PN} = "dev-so"
@@ -33,13 +33,15 @@ inherit pkgconfig cmake systemd
 EXTRA_OECMAKE = "-DCMAKE_BUILD_TYPE=RELEASE \
                  -DGSTREAMER_MEDIA_PLAYER=ON \
                  -DPORTAUDIO=ON \
+                 -DRAPIDJSON_MEM_OPTIMIZATION=OFF \
                  -DPORTAUDIO_LIB_PATH=${STAGING_LIBDIR}/libportaudio.so \
                  -DPORTAUDIO_INCLUDE_DIR=${STAGING_INCDIR} \
 "
 
 RDEPENDS_${PN} += "bash perl libwebsockets"
 DEPENDS = "curl nghttp2 sqlite3 gstreamer1.0-plugins-base cjson"
-DEPENDS += " rapidjson portaudio-v19"
+#DEPENDS += " rapidjson portaudio-v19"
+DEPENDS += " portaudio-v19"
 
 #Add KWD provider library conditionally.
 DEPENDS += " ${@bb.utils.contains('DISTRO_FEATURES', 'alexa_ffv', 'virtual/alexa-kwd-detector', ' ', d)}"
