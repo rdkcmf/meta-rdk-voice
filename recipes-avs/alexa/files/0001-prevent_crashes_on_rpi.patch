@@ -1,0 +1,22 @@
+From 238565c55690210abb4f3d60db6af859d2d807cf Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <GaneshPrasad_Sahu@comcast.com>
+Date: Sun, 22 Nov 2020 18:58:45 +0000
+Subject: [PATCH] prevent crash on rpi
+
+
+diff --git a/AVSCommon/Utils/include/AVSCommon/Utils/Logger/ThreadMoniker.h b/AVSCommon/Utils/include/AVSCommon/Utils/Logger/ThreadMoniker.h
+index ec70c280a..38abb2796 100644
+--- a/AVSCommon/Utils/include/AVSCommon/Utils/Logger/ThreadMoniker.h
++++ b/AVSCommon/Utils/include/AVSCommon/Utils/Logger/ThreadMoniker.h
+@@ -97,7 +97,7 @@ const ThreadMoniker& ThreadMoniker::getMonikerObject(const std::string& moniker)
+     return getMonikerObjectFromMap(moniker);
+ #else
+     /// Per-thread static instance so that @c m_threadMoniker.m_moniker is @c std::this_thread's moniker.
+-    static thread_local ThreadMoniker m_threadMoniker{moniker};
++    static ThreadMoniker m_threadMoniker{moniker};
+ 
+     return m_threadMoniker;
+ #endif
+-- 
+2.24.0
+

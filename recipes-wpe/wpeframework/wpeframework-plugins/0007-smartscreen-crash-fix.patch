@@ -1,0 +1,26 @@
+From dfd379f365aac982ecc5e388444b337b067d69b9 Mon Sep 17 00:00:00 2001
+From: Lakshmipriya <Lakshmipriya_Purushan@comcast.com>
+Date: Wed, 26 May 2021 04:45:37 +0000
+Subject: [PATCH 1/1] VIP7802-445 : Crash while enabling smartscreen support
+
+Reason for change: Smartscreen crash issue fix
+Risks: Low
+---
+ WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
+index 81455a7..736b754 100644
+--- a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
++++ b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
+@@ -621,6 +621,7 @@ namespace Plugin {
+         }
+ 
+         streams.push_back(configStream);
++	return true;
+     }
+ 
+     bool SmartScreen::Deinitialize()
+-- 
+2.17.1
+

@@ -1,0 +1,177 @@
+From e445dcd5f74878346902cd944729511ad399f7c9 Mon Sep 17 00:00:00 2001
+From: Manjunath HK <manjunath_kariyanna2@comcast.com>
+Date: Wed, 15 Jul 2020 07:53:52 +0000
+Subject: [PATCH] 1) New Dynamic Libarary Linking. 2) Function Calls To Newly
+ Introduced Library To Launch Metrological Applications    Using Curl Commands
+ Based On The Alexa Skill Respose, Alexa SampleApp State Handling Using LED.
+ 3) Changes To SampleApp To Support As Service. 4) Change The Libarary blas To
+ openblas To Support The KittAi.
+
+Signed-off-by: Manjunath HK <manjunath_kariyanna2@comcast.com>
+---
+ ADSL/src/CMakeLists.txt            | 4 +++-
+ ADSL/src/MessageInterpreter.cpp    | 6 +++++-
+ CMakeLists.txt                     | 1 +
+ KWD/KittAi/src/CMakeLists.txt      | 4 ++--
+ SampleApp/src/CMakeLists.txt       | 6 ++++--
+ SampleApp/src/UIManager.cpp        | 8 ++++++++
+ SampleApp/src/UserInputManager.cpp | 5 +++++
+ 7 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/ADSL/src/CMakeLists.txt b/ADSL/src/CMakeLists.txt
+index 0d4ee505d..ad88fb13a 100644
+--- a/ADSL/src/CMakeLists.txt
++++ b/ADSL/src/CMakeLists.txt
+@@ -9,10 +9,12 @@ add_library(ADSL SHARED
+     MessageInterpreter.cpp)
+ target_include_directories(ADSL PUBLIC
+     "${ADSL_SOURCE_DIR}/include"
++    "${VoiceToApps_INCLUDE_DIRS}"
+     "${AVSCommon_INCLUDE_DIRS}")
+ target_link_libraries(ADSL
+     ${CMAKE_THREAD_LIBS_INIT}
++    VoiceToApps
+     AVSCommon)
+ 
+ # install target
+-asdk_install()
+\ No newline at end of file
++asdk_install()
+diff --git a/ADSL/src/MessageInterpreter.cpp b/ADSL/src/MessageInterpreter.cpp
+index 0cfcf613b..42cdb9fbf 100644
+--- a/ADSL/src/MessageInterpreter.cpp
++++ b/ADSL/src/MessageInterpreter.cpp
+@@ -19,7 +19,7 @@
+ #include <AVSCommon/Utils/Metrics/DataPointStringBuilder.h>
+ #include <AVSCommon/Utils/Metrics/MetricEventBuilder.h>
+ #include <AVSCommon/Utils/Metrics.h>
+-
++#include <VoiceToApps/VoiceToApps.h>
+ #include <AVSCommon/Utils/Logger/Logger.h>
+ 
+ namespace alexaClientSDK {
+@@ -62,6 +62,10 @@ MessageInterpreter::MessageInterpreter(
+ void MessageInterpreter::receive(const std::string& contextId, const std::string& message) {
+     auto createResult = AVSDirective::create(message, m_attachmentManager, contextId);
+     std::shared_ptr<AVSDirective> avsDirective{std::move(createResult.first)};
++    voiceToApps sendCurlCmd;
++    /* condition to allow only speech synthesizer message which contains the string to launach application */
++    if(std::string::npos!=message.find("SpeechSynthesizer",0))
++        sendCurlCmd.curlCmdSendOnRcvMsg(message);
+     if (!avsDirective) {
+         if (m_exceptionEncounteredSender) {
+             const std::string errorDescription =
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2c0fbbf79..0dfd52eb7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -57,6 +57,7 @@ add_subdirectory("RegistrationManager")
+ add_subdirectory("shared")
+ add_subdirectory("SpeechEncoder")
+ add_subdirectory("Storage")
++add_subdirectory("VoiceToApps")
+ add_subdirectory("SynchronizeStateSender")
+ add_subdirectory("doc")
+ 
+diff --git a/KWD/KittAi/src/CMakeLists.txt b/KWD/KittAi/src/CMakeLists.txt
+index 1cc36e3cf..9547d5395 100644
+--- a/KWD/KittAi/src/CMakeLists.txt
++++ b/KWD/KittAi/src/CMakeLists.txt
+@@ -8,7 +8,7 @@ target_include_directories(KITTAI PUBLIC
+ 	"${KWD_SOURCE_DIR}/include"
+ 	"${KITTAI_SOURCE_DIR}/include")
+ 
+-target_link_libraries(KITTAI KWD AVSCommon "${KITTAI_KEY_WORD_DETECTOR_LIB_PATH}" blas)
++target_link_libraries(KITTAI KWD AVSCommon "${KITTAI_KEY_WORD_DETECTOR_LIB_PATH}" openblas)
+ 
+ # install target
+-asdk_install()
+\ No newline at end of file
++asdk_install()
+diff --git a/SampleApp/src/CMakeLists.txt b/SampleApp/src/CMakeLists.txt
+index d9307c7e3..20d3cd8aa 100644
+--- a/SampleApp/src/CMakeLists.txt
++++ b/SampleApp/src/CMakeLists.txt
+@@ -74,7 +74,8 @@ target_include_directories(LibSampleApp PUBLIC
+     "${RegistrationManager_SOURCE_DIR}/include"
+     "${ESP_SOURCE_DIR}/include"
+     "${InterruptModel_SOURCE_DIR}/config"
+-    "${PORTAUDIO_INCLUDE_DIR}")
++    "${PORTAUDIO_INCLUDE_DIR}"
++    "${VoiceToApps_SOURCE_DIR}/include")
+ 
+ target_link_libraries(LibSampleApp
+     acsdkCore
+@@ -88,7 +89,8 @@ target_link_libraries(LibSampleApp
+     SynchronizeStateSender
+     EqualizerImplementations
+     InterruptModel
+-    "${PORTAUDIO_LIB_PATH}")
++    "${PORTAUDIO_LIB_PATH}"
++    VoiceToApps)
+ 
+ if (ACS_UTILS)
+     target_link_libraries(LibSampleApp acsdkACSSampleApplicationOptions)
+diff --git a/SampleApp/src/UIManager.cpp b/SampleApp/src/UIManager.cpp
+index a679e0fd0..50612f653 100644
+--- a/SampleApp/src/UIManager.cpp
++++ b/SampleApp/src/UIManager.cpp
+@@ -27,6 +27,7 @@
+ 
+ #include "SampleApp/ConsolePrinter.h"
+ #include "SampleApp/UIManager.h"
++#include <VoiceToApps/VoiceToApps.h>
+ 
+ /// String to identify log entries originating from this file.
+ static const std::string TAG("UIManager");
+@@ -1093,6 +1094,7 @@ void UIManager::onSettingNotification(
+ }
+ 
+ void UIManager::printState() {
++    voiceToApps ledHandle;
+     if (m_connectionStatus == avsCommon::sdkInterfaces::ConnectionStatusObserverInterface::Status::DISCONNECTED) {
+         ConsolePrinter::prettyPrint("Client not connected!");
+     } else if (m_connectionStatus == avsCommon::sdkInterfaces::ConnectionStatusObserverInterface::Status::PENDING) {
+@@ -1101,9 +1103,15 @@ void UIManager::printState() {
+         switch (m_dialogState) {
+             case DialogUXState::IDLE:
+                 ConsolePrinter::prettyPrint("Alexa is currently idle!");
++                ledHandle.ioToggle(false,PINONE);
++                ledHandle.ioToggle(false,PINTWO);
++                ledHandle.ioToggle(false,PINTHREE);
+                 return;
+             case DialogUXState::LISTENING:
+                 ConsolePrinter::prettyPrint("Listening...");
++                ledHandle.ioToggle(true,PINONE);
++                ledHandle.ioToggle(true,PINTWO);
++                ledHandle.ioToggle(true,PINTHREE);
+                 return;
+             case DialogUXState::EXPECTING:
+                 ConsolePrinter::prettyPrint("Expecting...");
+diff --git a/SampleApp/src/UserInputManager.cpp b/SampleApp/src/UserInputManager.cpp
+index 292071890..8606d1ee7 100644
+--- a/SampleApp/src/UserInputManager.cpp
++++ b/SampleApp/src/UserInputManager.cpp
+@@ -21,6 +21,7 @@
+ #include <AVSCommon/Utils/String/StringUtils.h>
+ #include "SampleApp/UserInputManager.h"
+ #include "SampleApp/ConsolePrinter.h"
++#include <VoiceToApps/VoiceToApps.h>
+ 
+ #ifdef MODE_CONTROLLER
+ #include "SampleApp/PeripheralEndpoint/PeripheralEndpointModeControllerHandler.h"
+@@ -260,7 +261,11 @@ bool UserInputManager::sendDtmf(const std::string& dtmfTones) {
+ SampleAppReturnCode UserInputManager::run() {
+     bool userTriggeredLogout = false;
+     m_interactionManager->begin();
++    voiceToApps voiceHandler;
++    voiceHandler.ioParse();
+     while (true) {
++        std::this_thread::sleep_for(std::chrono::hours(1));
++	continue;
+         char x;
+         if (!readConsoleInput(&x)) {
+             break;
+-- 
+2.14.2
+

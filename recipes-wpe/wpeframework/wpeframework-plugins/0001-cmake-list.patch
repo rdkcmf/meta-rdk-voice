@@ -1,0 +1,29 @@
+From 6f770af55398fd62965f72d0c0886bff85499845 Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <GaneshPrasad_Sahu@comcast.com>
+Date: Mon, 30 Nov 2020 11:37:03 +0000
+Subject: [PATCH] enable avs plugin with thunder
+
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 594f9fa..296c1a0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -63,6 +63,7 @@ option(PLUGIN_WEBSHELL "Include WebShell plugin" OFF)
+ option(PLUGIN_WIFICONTROL "Include WifiControl plugin" OFF)
+ option(PLUGIN_FILETRANSFER "Include FileTransfer plugin" OFF)
+ option(PLUGIN_DTV "Include DTV plugin" OFF)
++option(PLUGIN_AVS "Include AVS plugin" OFF)
+ 
+ option(WPEFRAMEWORK_CREATE_IPKG_TARGETS "Generate the CPack configuration for package generation" OFF)
+ 
+@@ -250,6 +251,10 @@ if(PLUGIN_DTV)
+     add_subdirectory(DTV)
+ endif()
+ 
++if(PLUGIN_AVS)
++    add_subdirectory(WPEPluginAVS)
++endif()
++
+ add_subdirectory(examples)
+ 
+ if(WPEFRAMEWORK_CREATE_IPKG_TARGETS)

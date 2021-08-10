@@ -1,0 +1,23 @@
+From 8ff0fb4a9293a567d5454f332c20112965d272aa Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <ganeshprasad_sahu@comcast.com>
+Date: Fri, 2 Apr 2021 17:34:33 +0000
+Subject: [PATCH 3/3] Add install for version file
+
+---
+ modules/Alexa/Utils/CMakeLists.txt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/modules/Alexa/Utils/CMakeLists.txt b/modules/Alexa/Utils/CMakeLists.txt
+index 7984dc3..79cc27d 100644
+--- a/modules/Alexa/Utils/CMakeLists.txt
++++ b/modules/Alexa/Utils/CMakeLists.txt
+@@ -8,3 +8,6 @@ add_library(Utils INTERFACE)
+ 
+ target_include_directories(Utils INTERFACE
+     "${Utils_SOURCE_DIR}/include")
++
++install(DIRECTORY "${Utils_SOURCE_DIR}/include/Utils" DESTINATION include
++    FILES_MATCHING PATTERN "*.h")
+-- 
+2.14.2
+

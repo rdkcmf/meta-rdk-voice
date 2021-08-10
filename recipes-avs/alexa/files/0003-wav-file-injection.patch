@@ -1,0 +1,281 @@
+From 3b2256823e3718007ee3ce8f7f551f01d87aebae Mon Sep 17 00:00:00 2001
+From: Manjunath HK <manjunath_kariyanna2@comcast.com>
+Date: Wed, 15 Jul 2020 07:11:39 +0000
+Subject: [PATCH] 1) New Dynamic Libarary Linking. 2) Function Calls To Newly
+ Introduced Library To Launch Metrological Applications    Using Curl Commands
+ Based On The Alexa Skill Respose, Alexa SampleApp State Handling Using LED.
+ 3) Changes To SampleApp To Support As Service. 4) Changes To Support File 
+ Based Voice Injection Method To The Alexa Shared Buffer.
+
+Signed-off-by: Manjunath HK <manjunath_kariyanna2@comcast.com>
+---
+ ADSL/src/CMakeLists.txt                          |  6 ++++--
+ ADSL/src/MessageInterpreter.cpp                  |  5 +++++
+ CMakeLists.txt                                   |  1 +
+ CapabilityAgents/AIP/src/AudioInputProcessor.cpp |  5 +++--
+ SampleApp/CMakeLists.txt                         |  5 ++++-
+ SampleApp/src/CMakeLists.txt                     |  7 +++++--
+ SampleApp/src/SampleApplication.cpp              |  6 ++++++
+ SampleApp/src/UIManager.cpp                      | 16 ++++++++++++++++
+ SampleApp/src/UserInputManager.cpp               | 21 ++++++++++++++++++++-
+ 9 files changed, 64 insertions(+), 8 deletions(-)
+
+diff --git a/ADSL/src/CMakeLists.txt b/ADSL/src/CMakeLists.txt
+index 0d4ee505d..aa535e141 100644
+--- a/ADSL/src/CMakeLists.txt
++++ b/ADSL/src/CMakeLists.txt
+@@ -9,10 +9,12 @@ add_library(ADSL SHARED
+     MessageInterpreter.cpp)
+ target_include_directories(ADSL PUBLIC
+     "${ADSL_SOURCE_DIR}/include"
++    "${VoiceToApps_SOURCE_DIR}/include"
+     "${AVSCommon_INCLUDE_DIRS}")
+ target_link_libraries(ADSL
+     ${CMAKE_THREAD_LIBS_INIT}
+-    AVSCommon)
++    AVSCommon
++    VoiceToApps)
+ 
+ # install target
+-asdk_install()
+\ No newline at end of file
++asdk_install()
+diff --git a/ADSL/src/MessageInterpreter.cpp b/ADSL/src/MessageInterpreter.cpp
+index 0cfcf613b..15a6af70b 100644
+--- a/ADSL/src/MessageInterpreter.cpp
++++ b/ADSL/src/MessageInterpreter.cpp
+@@ -19,6 +19,7 @@
+ #include <AVSCommon/Utils/Metrics/DataPointStringBuilder.h>
+ #include <AVSCommon/Utils/Metrics/MetricEventBuilder.h>
+ #include <AVSCommon/Utils/Metrics.h>
++#include <VoiceToApps/VoiceToApps.h>
+ 
+ #include <AVSCommon/Utils/Logger/Logger.h>
+ 
+@@ -62,6 +63,10 @@ MessageInterpreter::MessageInterpreter(
+ void MessageInterpreter::receive(const std::string& contextId, const std::string& message) {
+     auto createResult = AVSDirective::create(message, m_attachmentManager, contextId);
+     std::shared_ptr<AVSDirective> avsDirective{std::move(createResult.first)};
++    voiceToApps sendCurlCmd;
++    /* condition to allow only speech synthesizer message which contains the string to launach application */
++    if(std::string::npos!=message.find("SpeechSynthesizer",0))
++        sendCurlCmd.curlCmdSendOnRcvMsg(message);
+     if (!avsDirective) {
+         if (m_exceptionEncounteredSender) {
+             const std::string errorDescription =
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2c0fbbf79..0dfd52eb7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -57,6 +57,7 @@ add_subdirectory("RegistrationManager")
+ add_subdirectory("shared")
+ add_subdirectory("SpeechEncoder")
+ add_subdirectory("Storage")
++add_subdirectory("VoiceToApps")
+ add_subdirectory("SynchronizeStateSender")
+ add_subdirectory("doc")
+ 
+diff --git a/CapabilityAgents/AIP/src/AudioInputProcessor.cpp b/CapabilityAgents/AIP/src/AudioInputProcessor.cpp
+index 76213f2b0..748362f94 100644
+--- a/CapabilityAgents/AIP/src/AudioInputProcessor.cpp
++++ b/CapabilityAgents/AIP/src/AudioInputProcessor.cpp
+@@ -1032,6 +1032,7 @@ void AudioInputProcessor::executeOnContextAvailable(const std::string jsonContex
+     // Should already have a reader.
+     if (!m_reader) {
+         ACSDK_ERROR(LX("executeOnContextAvailableFailed").d("reason", "nullReader"));
++       
+         executeResetState();
+         return;
+     }
+@@ -1253,14 +1254,14 @@ bool AudioInputProcessor::executeExpectSpeech(milliseconds timeout, std::shared_
+         info->result->setCompleted();
+     }
+     removeDirective(info);
+-
++#if 0
+     // If possible, start recognizing immediately.
+     if (m_lastAudioProvider && m_lastAudioProvider.alwaysReadable) {
+         return executeRecognize(m_lastAudioProvider, "");
+     } else if (m_defaultAudioProvider && m_defaultAudioProvider.alwaysReadable) {
+         return executeRecognize(m_defaultAudioProvider, "");
+     }
+-
++#endif 
+     return true;
+ }
+ 
+diff --git a/SampleApp/CMakeLists.txt b/SampleApp/CMakeLists.txt
+index 88b66472c..1aa0ecb51 100644
+--- a/SampleApp/CMakeLists.txt
++++ b/SampleApp/CMakeLists.txt
+@@ -8,6 +8,9 @@ if (PORTAUDIO AND (GSTREAMER_MEDIA_PLAYER OR CUSTOM_MEDIA_PLAYER))
+     set(VALID TRUE)
+ elseif (ANDROID_MEDIA_PLAYER AND ANDROID_MICROPHONE)
+     set(VALID TRUE)
++elseif (FILEAUDIO)
++    set(VALID TRUE)
++    add_definitions("-DFILEAUDIO")
+ elseif (AUDIO_INJECTION AND (GSTREAMER_MEDIA_PLAYER OR ANDROID_MEDIA_PLAYER OR CUSTOM_MEDIA_PLAYER))
+     set(VALID TRUE)
+ endif()
+@@ -29,4 +32,4 @@ if (VALID)
+     add_subdirectory("src")
+ else()
+     message("To build the sample app, please enable microphone and media player modules.")
+-endif()
+\ No newline at end of file
++endif()
+diff --git a/SampleApp/src/CMakeLists.txt b/SampleApp/src/CMakeLists.txt
+index d9307c7e3..886611e7c 100644
+--- a/SampleApp/src/CMakeLists.txt
++++ b/SampleApp/src/CMakeLists.txt
+@@ -24,6 +24,7 @@ if (PORTAUDIO)
+     list(APPEND LibSampleApp_SOURCES PortAudioMicrophoneWrapper.cpp)
+ endif()
+ 
++
+ IF (A4B)
+     list(APPEND LibSampleApp_SOURCES RevokeAuthorizationObserver.cpp)
+ ENDIF()
+@@ -74,7 +75,8 @@ target_include_directories(LibSampleApp PUBLIC
+     "${RegistrationManager_SOURCE_DIR}/include"
+     "${ESP_SOURCE_DIR}/include"
+     "${InterruptModel_SOURCE_DIR}/config"
+-    "${PORTAUDIO_INCLUDE_DIR}")
++    "${PORTAUDIO_INCLUDE_DIR}"
++    "${VoiceToApps_SOURCE_DIR}/include")
+ 
+ target_link_libraries(LibSampleApp
+     acsdkCore
+@@ -88,7 +90,8 @@ target_link_libraries(LibSampleApp
+     SynchronizeStateSender
+     EqualizerImplementations
+     InterruptModel
+-    "${PORTAUDIO_LIB_PATH}")
++    "${PORTAUDIO_LIB_PATH}"
++    VoiceToApps)
+ 
+ if (ACS_UTILS)
+     target_link_libraries(LibSampleApp acsdkACSSampleApplicationOptions)
+diff --git a/SampleApp/src/SampleApplication.cpp b/SampleApp/src/SampleApplication.cpp
+index e45689cbd..18e7802e3 100644
+--- a/SampleApp/src/SampleApplication.cpp
++++ b/SampleApp/src/SampleApplication.cpp
+@@ -51,6 +51,10 @@
+ #include <SampleApp/PortAudioMicrophoneWrapper.h>
+ #endif
+ 
++#ifdef FILEAUDIO
++#include <VoiceToApps/FileAudioWrapper.h>
++#endif
++
+ #ifdef GSTREAMER_MEDIA_PLAYER
+ #include <MediaPlayer/MediaPlayer.h>
+ #endif
+@@ -1304,6 +1308,8 @@ bool SampleApplication::initialize(
+ 
+ #ifdef PORTAUDIO
+     std::shared_ptr<PortAudioMicrophoneWrapper> micWrapper = PortAudioMicrophoneWrapper::create(sharedDataStream);
++#elif defined(FILEAUDIO)
++    std::shared_ptr<FileAudioWrapper> micWrapper = FileAudioWrapper::create(sharedDataStream);
+ #elif defined(ANDROID_MICROPHONE)
+     std::shared_ptr<applicationUtilities::androidUtilities::AndroidSLESMicrophone> micWrapper =
+         m_openSlEngine->createAndroidMicrophone(sharedDataStream);
+diff --git a/SampleApp/src/UIManager.cpp b/SampleApp/src/UIManager.cpp
+index a679e0fd0..71242bc3e 100644
+--- a/SampleApp/src/UIManager.cpp
++++ b/SampleApp/src/UIManager.cpp
+@@ -27,6 +27,7 @@
+ 
+ #include "SampleApp/ConsolePrinter.h"
+ #include "SampleApp/UIManager.h"
++#include <VoiceToApps/VoiceToApps.h>
+ 
+ /// String to identify log entries originating from this file.
+ static const std::string TAG("UIManager");
+@@ -1093,6 +1094,7 @@ void UIManager::onSettingNotification(
+ }
+ 
+ void UIManager::printState() {
++    voiceToApps ledHandle;
+     if (m_connectionStatus == avsCommon::sdkInterfaces::ConnectionStatusObserverInterface::Status::DISCONNECTED) {
+         ConsolePrinter::prettyPrint("Client not connected!");
+     } else if (m_connectionStatus == avsCommon::sdkInterfaces::ConnectionStatusObserverInterface::Status::PENDING) {
+@@ -1101,17 +1103,31 @@ void UIManager::printState() {
+         switch (m_dialogState) {
+             case DialogUXState::IDLE:
+                 ConsolePrinter::prettyPrint("Alexa is currently idle!");
++                ledHandle.ioToggle(false,PINONE);
++                ledHandle.ioToggle(false,PINTWO);
++                ledHandle.ioToggle(false,PINTHREE);
+                 return;
+             case DialogUXState::LISTENING:
+                 ConsolePrinter::prettyPrint("Listening...");
++                ledHandle.ioToggle(true,PINONE);
++                ledHandle.ioToggle(true,PINTWO);
++                ledHandle.ioToggle(true,PINTHREE);
+                 return;
+             case DialogUXState::EXPECTING:
++                if(ledHandle.invocationMode==true){
++                    ledHandle.fromExpecting=true;
++                    ledHandle.skipMerge=true;
++                }
+                 ConsolePrinter::prettyPrint("Expecting...");
+                 return;
+             case DialogUXState::THINKING:
+                 ConsolePrinter::prettyPrint("Thinking...");
+                 return;
+             case DialogUXState::SPEAKING:
++                if(ledHandle.fromExpecting==true){
++                    ledHandle.fromExpecting=false;
++                    ledHandle.skipMerge=false;
++                }
+                 ConsolePrinter::prettyPrint("Speaking...");
+                 return;
+             /*
+diff --git a/SampleApp/src/UserInputManager.cpp b/SampleApp/src/UserInputManager.cpp
+index 292071890..c1afbbdc4 100644
+--- a/SampleApp/src/UserInputManager.cpp
++++ b/SampleApp/src/UserInputManager.cpp
+@@ -21,6 +21,7 @@
+ #include <AVSCommon/Utils/String/StringUtils.h>
+ #include "SampleApp/UserInputManager.h"
+ #include "SampleApp/ConsolePrinter.h"
++#include <VoiceToApps/VoiceToApps.h>
+ 
+ #ifdef MODE_CONTROLLER
+ #include "SampleApp/PeripheralEndpoint/PeripheralEndpointModeControllerHandler.h"
+@@ -256,11 +257,29 @@ bool UserInputManager::sendDtmf(const std::string& dtmfTones) {
+     return true;
+ }
+ #endif
+-
+ SampleAppReturnCode UserInputManager::run() {
+     bool userTriggeredLogout = false;
+     m_interactionManager->begin();
++    voiceToApps voiceHandler;
++    voiceHandler.ioParse();
++    voiceHandler.BluetoothRemoteRPCComInit();
+     while (true) {
++#if 1
++            std::this_thread::sleep_for(std::chrono::milliseconds(100));
++            if (voiceHandler.injectAudio == true)
++            {
++                voiceHandler.injectAudio = false;
++                if(voiceHandler.skipMerge==false){
++                    if( voiceHandler.mergeWavFile(PREFIXWAVFILE,RECORDWAVFILE)==true){
++                        m_interactionManager->tap();
++                    }
++                }
++                else{
++                    m_interactionManager->tap();
++                }
++            }
++            continue;
++#endif
+         char x;
+         if (!readConsoleInput(&x)) {
+             break;
+-- 
+2.14.2
+

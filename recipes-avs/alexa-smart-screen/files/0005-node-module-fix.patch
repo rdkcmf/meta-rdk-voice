@@ -1,0 +1,32 @@
+From 106009be356bc1782b24f9b15aad3fee2cac3072 Mon Sep 17 00:00:00 2001
+From: sramak943 <sudharsan.ramakrishnan@comcast.com>
+Date: Tue, 30 Mar 2021 04:59:25 +0000
+Subject: [PATCH] node build Fixes
+
+---
+ modules/GUI/js/package.json | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/modules/GUI/js/package.json b/modules/GUI/js/package.json
+index 325e34c..f8c8cea 100644
+--- a/modules/GUI/js/package.json
++++ b/modules/GUI/js/package.json
+@@ -21,13 +21,14 @@
+     "file-loader": "^1.1.11",
+     "source-map-loader": "^0.2.4",
+     "loglevel": "^1.6.3",
++    "csstype": "2.6.13",
+     "react": "^16.4.1",
+     "react-dom": "^16.4.1",
+     "style-loader": "^0.21.0",
+     "ts-loader": "^4.4.1",
+     "tslint": "^5.11.0",
+     "tslint-loader": "^3.6.0",
+-    "typescript": "^2.9.2",
++    "typescript": "3.5.1",
+     "webpack": "^4.14.0"
+   },
+   "devDependencies": {
+-- 
+2.24.0
+

@@ -1,0 +1,99 @@
+From 5e4d8b985bc88b60bdf3f8b7cc6c68e9327cabb0 Mon Sep 17 00:00:00 2001
+From: Sudharsan Ramakrishnan <sudharsan.r@tataelxsi.co.in>
+Date: Mon, 1 Feb 2021 20:03:09 +0000
+Subject: [PATCH] template card support
+
+---
+ WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp           |  1 +
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp | 28 ++++++++++++++++++++++++++
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h   |  9 +++++++++
+ 3 files changed, 38 insertions(+)
+
+diff --git a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+index f2a46be..7472837 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+@@ -511,6 +511,7 @@ namespace Plugin {
+         }
+ 
+         authDelegate->addAuthObserver(m_thunderInputManager);
++        client->addTemplateRuntimeObserver(m_thunderInputManager);
+         client->addAlexaDialogStateObserver(m_thunderInputManager);
+         client->addMessageObserver(m_thunderInputManager);
+         client->getRegistrationManager()->addObserver(m_thunderInputManager);
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
+index 16fd246..25df916 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
+@@ -50,6 +50,34 @@ namespace Plugin {
+         }
+     }
+ 
++    void ThunderInputManager::renderTemplateCard(const std::string& jsonPayload, alexaClientSDK::avsCommon::avs::FocusState focusState)
++    {
++        if(! m_vtaFlag ) {
++         TRACE_L1("VoiceToApps vtaFlag not initialized...");
++          printf("VoiceToApps vtaFlag not initialized...\n");
++          return;
++        }
++
++        printf("VoiceToApps template card: %s ...\n", jsonPayload.c_str());
++        vta.curlCmdSendOnRcvMsg(jsonPayload);
++    }
++
++    void  ThunderInputManager::renderPlayerInfoCard (const std::string &jsonPayload, 
++                TemplateRuntimeObserverInterface::AudioPlayerInfo info, alexaClientSDK::avsCommon::avs::FocusState focusState) 
++    {
++
++    }
++
++    void ThunderInputManager::clearTemplateCard() {
++            
++    }
++
++    void ThunderInputManager::clearPlayerInfoCard() {
++
++    }
++
++
++
+     void ThunderInputManager::receive(const std::string& contextId, const std::string& message) {
+ 
+         if(! m_vtaFlag ) {
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+index d42502a..8bef722 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+@@ -26,6 +26,7 @@
+ 
+ #include <AVS/SampleApp/InteractionManager.h>
+ #include <AVSCommon/SDKInterfaces/MessageObserverInterface.h>
++#include <AVSCommon/SDKInterfaces/TemplateRuntimeObserverInterface.h>
+ 
+ #include <atomic>
+ 
+@@ -38,6 +39,7 @@ namespace Plugin {
+           public alexaClientSDK::avsCommon::sdkInterfaces::CapabilitiesObserverInterface,
+           public alexaClientSDK::registrationManager::RegistrationObserverInterface,
+           public alexaClientSDK::avsCommon::sdkInterfaces::DialogUXStateObserverInterface,
++          public alexaClientSDK::avsCommon::sdkInterfaces::TemplateRuntimeObserverInterface,
+           public alexaClientSDK::avsCommon::sdkInterfaces::MessageObserverInterface {
+     public:
+         static std::unique_ptr<ThunderInputManager> create(std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> interactionManager);
+@@ -72,6 +74,13 @@ namespace Plugin {
+         void onDialogUXStateChanged(DialogUXState newState) override;
+         void receive(const std::string& contextId, const std::string& message) override;
+ 
++        //template card
++        void renderTemplateCard(const std::string& jsonPayload, alexaClientSDK::avsCommon::avs::FocusState focusState) override;
++        void    clearTemplateCard () override; 
++        void    renderPlayerInfoCard (const std::string &jsonPayload, TemplateRuntimeObserverInterface::AudioPlayerInfo
++        info, alexaClientSDK::avsCommon::avs::FocusState focusState) override;
++        void    clearPlayerInfoCard () override;
++
+         WPEFramework::Exchange::IAVSController* Controller();
+ 
+     private:
+-- 
+2.24.0
+

@@ -1,0 +1,140 @@
+From 61c02cd83c1c5fcce32b616312afb878f1dfd470 Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <GaneshPrasad_Sahu@comcast.com>
+Date: Mon, 1 Feb 2021 19:57:52 +0000
+Subject: [PATCH] skillmaper integration
+
+---
+ WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp           |  1 +
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp | 39 ++++++++++++++++++++++++++
+ WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h   |  8 +++++-
+ 3 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+index 82452af..f2a46be 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+@@ -512,6 +512,7 @@ namespace Plugin {
+ 
+         authDelegate->addAuthObserver(m_thunderInputManager);
+         client->addAlexaDialogStateObserver(m_thunderInputManager);
++        client->addMessageObserver(m_thunderInputManager);
+         client->getRegistrationManager()->addObserver(m_thunderInputManager);
+         m_capabilitiesDelegate->addCapabilitiesObserver(client);
+         m_capabilitiesDelegate->addCapabilitiesObserver(m_thunderInputManager);
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
+index 7ceec58..16fd246 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.cpp
+@@ -39,6 +39,8 @@ namespace Plugin {
+         , m_interactionManager{ interactionManager }
+         , m_controller{ WPEFramework::Core::ProxyType<AVSController>::Create(this) }
+     {
++        TRACE_L1("Parsing VoiceToApps LEDs...");
++        m_vtaFlag = vta.ioParse();
+     }
+ 
+     void ThunderInputManager::onDialogUXStateChanged(DialogUXState newState)
+@@ -48,6 +50,17 @@ namespace Plugin {
+         }
+     }
+ 
++    void ThunderInputManager::receive(const std::string& contextId, const std::string& message) {
++
++        if(! m_vtaFlag ) {
++            TRACE_L1("VoiceToApps vtaFlag not initialized...");
++        }
++
++        if(std::string::npos!=message.find("SpeechSynthesizer",0) && m_vtaFlag )
++            TRACE_L1("VoiceToApps invoking curl command...");
++            vta.curlCmdSendOnRcvMsg(message);
++    }
++
+     ThunderInputManager::AVSController::AVSController(ThunderInputManager* parent)
+         : m_parent(*parent)
+         , m_notifications()
+@@ -69,18 +128,41 @@ namespace Plugin {
+
+         switch (newState) {
+         case DialogUXState::IDLE:
++            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_IDLE, false);
++            if (! m_parent.m_vtaFlag ) {
++                TRACE_L1("VoiceToApps vtaFlag not initialized during state change...");
++            }
+             dialoguestate = IAVSController::INotification::IDLE;
+             break;
+         case DialogUXState::LISTENING:
++            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_LISTENING, false);
++            if (! m_parent.m_vtaFlag ) {
++                TRACE_L1("VoiceToApps vtaFlag not initialized during state change...");
++            }
+             dialoguestate = IAVSController::INotification::LISTENING;
+             break;
+         case DialogUXState::EXPECTING:
++            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_EXPECTING, false);
++#ifdef FILEAUDIO
++            if ( m_parent.vta.invocationMode ){
++                 m_parent.vta.fromExpecting=true;
++                 m_parent.vta.skipMerge=true;
++            }
++#endif
+             dialoguestate = IAVSController::INotification::EXPECTING;
+             break;
+         case DialogUXState::THINKING:
++            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_THINKING, false);
+             dialoguestate = IAVSController::INotification::THINKING;
+             break;
+         case DialogUXState::SPEAKING:
++            m_parent.vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_SPEAKING, false);
++#ifdef FILEAUDIO
++            if ( m_parent.vta.fromExpecting ) {
++                 m_parent.vta.fromExpecting=false;
++                 m_parent.vta.skipMerge=false;
++            }
++#endif
+             dialoguestate = IAVSController::INotification::SPEAKING;
+             break;
+         case DialogUXState::FINISHED:
+diff --git a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+index ccd068b..d42502a 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
++++ b/WPEPluginAVS/Impl/AVSDevice/ThunderInputManager.h
+@@ -19,11 +19,13 @@
+ 
+ #pragma once
+ 
++#include <VoiceToApps/VoiceToApps.h>
+ #include "TraceCategories.h"
+ 
+ #include <WPEFramework/interfaces/IAVSClient.h>
+ 
+ #include <AVS/SampleApp/InteractionManager.h>
++#include <AVSCommon/SDKInterfaces/MessageObserverInterface.h>
+ 
+ #include <atomic>
+ 
+@@ -35,10 +37,13 @@ namespace Plugin {
+         : public alexaClientSDK::avsCommon::sdkInterfaces::AuthObserverInterface,
+           public alexaClientSDK::avsCommon::sdkInterfaces::CapabilitiesObserverInterface,
+           public alexaClientSDK::registrationManager::RegistrationObserverInterface,
+-          public alexaClientSDK::avsCommon::sdkInterfaces::DialogUXStateObserverInterface {
++          public alexaClientSDK::avsCommon::sdkInterfaces::DialogUXStateObserverInterface,
++          public alexaClientSDK::avsCommon::sdkInterfaces::MessageObserverInterface {
+     public:
+         static std::unique_ptr<ThunderInputManager> create(std::shared_ptr<alexaClientSDK::sampleApp::InteractionManager> interactionManager);
+ 
++        skillmapper::voiceToApps vta;
++        int m_vtaFlag;
+         class AVSController : public WPEFramework::Exchange::IAVSController {
+         public:
+             AVSController(const AVSController&) = delete;
+@@ -65,6 +70,7 @@ namespace Plugin {
+ 
+         void onLogout() override;
+         void onDialogUXStateChanged(DialogUXState newState) override;
++        void receive(const std::string& contextId, const std::string& message) override;
+ 
+         WPEFramework::Exchange::IAVSController* Controller();
+ 
+-- 
+2.24.0
+

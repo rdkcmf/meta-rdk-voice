@@ -1,0 +1,311 @@
+From 376ad5c8a6c1952b07f0b3e2097dbe75fb7e9ce6 Mon Sep 17 00:00:00 2001
+From: Ganesh prasad Sahu <GaneshPrasad_Sahu@comcast.com>
+Date: Mon, 30 Nov 2020 11:32:29 +0000
+Subject: [PATCH] fixes to build AVS plugin in yocto
+
+
+diff --git a/WPEPluginAVS/AVS.h b/WPEPluginAVS/AVS.h
+index aea2269..04fe63d 100644
+--- a/WPEPluginAVS/AVS.h
++++ b/WPEPluginAVS/AVS.h
+@@ -22,7 +22,7 @@
+ #include "Module.h"
+ 
+ #include <interfaces/IAVSClient.h>
+-#include <interfaces/JAVSController.h>
++#include  <interfaces/json/JAVSController.h>
+ 
+ #include <AVS/SampleApp/SampleApplicationReturnCodes.h>
+ 
+@@ -148,8 +153,10 @@ namespace Plugin {
+             Config& operator=(const Config&) = delete;
+
+         public:
++
+             Config()
+                 : Core::JSON::Container()
++                , OutOfProcess(true)
+                 , Audiosource()
+                 , AlexaClientConfig()
+                 , SmartScreenConfig()
+@@ -165,6 +172,7 @@ namespace Plugin {
+                 Add(_T("kwdmodelspath"), &KWDModelsPath);
+                 Add(_T("enablesmartscreen"), &EnableSmartScreen);
+                 Add(_T("enablekwd"), &EnableKWD);
++                Add(_T("outofprocess"), &OutOfProcess);
+             }
+
+             ~Config() = default;
+@@ -177,6 +185,7 @@ namespace Plugin {
+             Core::JSON::String KWDModelsPath;
+             Core::JSON::Boolean EnableSmartScreen;
+             Core::JSON::Boolean EnableKWD;
++            Core::JSON::Boolean OutOfProcess;
+         };
+
+     public:
+diff --git a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+index 82452af..f57ffb0 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+@@ -19,7 +19,10 @@
+ 
+ #include "AVSDevice.h"
+ 
++#if defined(KWD_PRYON)
+ #include "PryonKeywordDetector.h"
++#endif
++
+ #include "ThunderLogger.h"
+ #include "ThunderVoiceHandler.h"
+ #include "TraceCategories.h"
+@@ -31,12 +34,12 @@
+ #include <AVSCommon/Utils/LibcurlUtils/LibcurlHTTP2ConnectionFactory.h>
+ #include <AVSCommon/Utils/Logger/LoggerSinkManager.h>
+ #include <AVSCommon/Utils/Network/InternetConnectionMonitor.h>
+-#include <Alerts/Storage/SQLiteAlertStorage.h>
++#include  <Alerts/Storage/SQLiteAlertStorage.h>
+ #include <Audio/AudioFactory.h>
+ #include <CBLAuthDelegate/CBLAuthDelegate.h>
+ #include <CBLAuthDelegate/SQLiteCBLAuthDelegateStorage.h>
+ #include <ContextManager/ContextManager.h>
+-#include <Notifications/SQLiteNotificationsStorage.h>
++#include  <Notifications/SQLiteNotificationsStorage.h>
+ #include <SQLiteStorage/SQLiteMiscStorage.h>
+ #include <Settings/Storage/SQLiteDeviceSettingStorage.h>
+ 
+@@ -569,7 +580,7 @@ namespace Plugin {
+
+     bool AVSDevice::Deinitialize()
+     {
+-        TRACE_L1(_T("Deinitialize()"))
++        TRACE_L1(_T("Deinitialize()"));
+
+         return true;
+     }
+@@ -590,4 +593,4 @@ namespace Plugin {
+         }
+     }
+ }
+-}
+\ No newline at end of file
++}
+diff --git a/WPEPluginAVS/CMakeLists.txt b/WPEPluginAVS/CMakeLists.txt
+index 48201fd..a604846 100644
+--- a/WPEPluginAVS/CMakeLists.txt
++++ b/WPEPluginAVS/CMakeLists.txt
+@@ -65,12 +65,17 @@ set_target_properties(${MODULE_NAME} PROPERTIES
+ add_subdirectory("Impl/AVSDevice/")
+
+ if(PLUGIN_AVS_ENABLE_SMART_SCREEN_SUPPORT)
++    add_definitions(-DENABLE_SMART_SCREEN_SUPPORT)
+     add_subdirectory("Impl/SmartScreen/")
+     target_link_libraries(${MODULE_NAME} PRIVATE SmartScreen)
+ endif()
+
+ add_subdirectory("Integration")
+
++target_include_directories(${MODULE_NAME} PUBLIC
++    "${AVSDSDK_INCLUDE_DIRS}"
++    "${THUNDER_INCLUDE_DIRS}")
++
+ target_link_libraries(${MODULE_NAME}
+     PRIVATE
+         ${NAMESPACE}Plugins::${NAMESPACE}Plugins
+diff --git a/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt b/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt
+index efe116d..22c311f 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt
++++ b/WPEPluginAVS/Impl/AVSDevice/CMakeLists.txt
+@@ -46,9 +46,12 @@ target_include_directories(${MODULE_NAME}
+     PUBLIC
+         ../
+         ${NAMESPACE}Plugins::${NAMESPACE}Plugins
++        "${AVSDSDK_INCLUDE_DIRS}"
++        "${THUNDER_INCLUDE_DIRS}"
+         ${ALEXA_CLIENT_SDK_INCLUDES})
+
+ target_link_libraries(${MODULE_NAME} PRIVATE ${ALEXA_CLIENT_SDK_LIBRARIES})
++target_link_libraries(${MODULE_NAME} PRIVATE -lVoiceToApps)
+
+ if(PLUGIN_AVS_ENABLE_KWD_SUPPORT)
+     if(PRYON_LITE_FOUND)
+diff --git a/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt b/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt
+index 8b28606..79a0493 100644
+--- a/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt
++++ b/WPEPluginAVS/Impl/SmartScreen/CMakeLists.txt
+@@ -52,6 +52,8 @@ target_include_directories(${MODULE_NAME}
+     PUBLIC
+         ../
+         ${NAMESPACE}Plugins::${NAMESPACE}Plugins
++        "${AVSDSDK_INCLUDE_DIRS}"
++        "${THUNDER_INCLUDE_DIRS}"
+         ${ALEXA_CLIENT_SDK_INCLUDES}
+         ${ALEXA_SMART_SCREEN_SDK_INCLUDES})
+
+diff --git a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
+index 81455a7..51a48b4 100644
+--- a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
++++ b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.cpp
+@@ -19,7 +19,9 @@
+
+ #include "SmartScreen.h"
+
++#if defined(KWD_PRYON)
+ #include "PryonKeywordDetector.h"
++#endif
+ #include "ThunderLogger.h"
+ #include "ThunderVoiceHandler.h"
+ #include "TraceCategories.h"
+@@ -552,6 +554,8 @@ namespace Plugin {
+             }
+         }
+
++        // skillmapper
++        vta.handleStateChangeNotification(skillmapper::VoiceSDKState::VTA_INIT, true);
+         client->addSpeakerManagerObserver(userInterfaceManager);
+         client->addNotificationsObserver(userInterfaceManager);
+         client->addTemplateRuntimeObserver(m_guiManager);
+@@ -625,7 +627,7 @@ namespace Plugin {
+
+     bool SmartScreen::Deinitialize()
+     {
+-        TRACE_L1(_T("Deinitialize()"))
++        TRACE_L1(_T("Deinitialize()"));
+
+         return true;
+     }
+@@ -643,4 +645,4 @@ namespace Plugin {
+         }
+     }
+ }
+-}
+\ No newline at end of file
++}
+diff --git a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.h b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.h
+index c3098d6..499256b 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.h
++++ b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.h
+@@ -29,11 +29,14 @@
+ 
+ #include <vector>
+ 
++#include <VoiceToApps/VideoSkillInterface.h>
++
+ namespace WPEFramework {
+ namespace Plugin {
+ 
+     class AVSDevice
+         : public WPEFramework::Exchange::IAVSClient,
++          public Core::Thread,
+           private alexaClientSDK::sampleApp::SampleApplication {
+     public:
+         AVSDevice()
+@@ -41,13 +44,31 @@ namespace Plugin {
+             , m_thunderInputManager(nullptr)
+             , m_thunderVoiceHandler(nullptr)
+         {
++           Run();
+         }
+ 
+         AVSDevice(const AVSDevice&) = delete;
+         AVSDevice& operator=(const AVSDevice&) = delete;
+-        ~AVSDevice() {}
+-
++        ~AVSDevice()
++        {
++            Stop();
++            Wait(Thread::STOPPED | Thread::BLOCKED, Core::infinite);
++        }
++        void CreateSQSWorker(void)
++        {
++            std::cout << "Starting SQS Thread.." << std::endl;
++            while((IsRunning() == true)){ handleReceiveSQSMessage(); }
++            return;
++        }
+     private:
++        virtual uint32_t Worker()
++        {
++            if ((IsRunning() == true)) {
++                CreateSQSWorker();
++            }
++            Block();
++            return (Core::infinite);
++        }
+         class Config : public WPEFramework::Core::JSON::Container {
+         public:
+             Config(const Config&) = delete;
+diff --git a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.h b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.h
+index 6975dc3..bbc579f 100644
+--- a/WPEPluginAVS/Impl/SmartScreen/SmartScreen.h
++++ b/WPEPluginAVS/Impl/SmartScreen/SmartScreen.h
+@@ -29,24 +29,47 @@
+
+ #include <vector>
+
++#include <VoiceToApps/VoiceToApps.h>
++#include <VoiceToApps/VideoSkillInterface.h>
++
+ namespace WPEFramework {
+ namespace Plugin {
+
+     class SmartScreen
+         : public WPEFramework::Exchange::IAVSClient,
++          public Core::Thread,
+           private alexaSmartScreenSDK::sampleApp::SampleApplication {
+     public:
+         SmartScreen()
+             : _service(nullptr)
+             , m_thunderVoiceHandler(nullptr)
+         {
++           Run();
+         }
+
+         SmartScreen(const SmartScreen&) = delete;
+         SmartScreen& operator=(const SmartScreen&) = delete;
+-        ~SmartScreen() {}
++        ~SmartScreen()
++        {
++            Stop();
++            Wait(Thread::STOPPED | Thread::BLOCKED, Core::infinite);
++        }
++        void CreateSQSWorker(void)
++        {
++            std::cout << "Starting SQS Thread.." << std::endl;
++            while((IsRunning() == true)){ handleReceiveSQSMessage(); }
++            return;
++        }
+
+     private:
++        virtual uint32_t Worker()
++        {
++            if ((IsRunning() == true)) {
++                CreateSQSWorker();
++            }
++            Block();
++            return (Core::infinite);
++        }
+         class Config : public WPEFramework::Core::JSON::Container {
+         public:
+             Config(const Config&) = delete;
+@@ -86,6 +109,7 @@ namespace Plugin {
+         bool Deinitialize() override;
+         Exchange::IAVSController* Controller() override;
+         void StateChange(PluginHost::IShell* audioSource) override;
++        skillmapper::voiceToApps vta;
+
+         BEGIN_INTERFACE_MAP(SmartScreen)
+         INTERFACE_ENTRY(WPEFramework::Exchange::IAVSClient)
+diff --git a/WPEPluginAVS/Impl/PryonKeywordDetector.cpp b/WPEPluginAVS/Impl/PryonKeywordDetector.cpp
+index 599033e..3427aa4 100644
+--- a/WPEPluginAVS/Impl/PryonKeywordDetector.cpp
++++ b/WPEPluginAVS/Impl/PryonKeywordDetector.cpp
+@@ -237,9 +237,6 @@ namespace Plugin {
+         }
+
+         auto sampleLen = result->endSampleIndex - result->beginSampleIndex;
+-        TRACE_L1((_T("Detection Callback Results:\n"
+-                     "confidenence = %d, beginSampleIndex = %d, endSampleIndex = %d, m_streamReader->tell() = %d, sampleLen = %d, keyword = %s"),
+-            result->confidence, result->beginSampleIndex, result->endSampleIndex, pryonKWD->m_streamReader->tell(), sampleLen, result->keyword));
+
+         pryonKWD->notifyKeyWordObservers(
+             pryonKWD->m_stream,

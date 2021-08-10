@@ -1,0 +1,37 @@
+{
+ "locator":"libWPEFrameworkWebKitBrowser.so",
+ "classname":"WebKitBrowser",
+ "precondition":[
+  "Graphics",
+  "Internet"
+ ],
+ "autostart":false,
+ "resumed":true,
+ "configuration":{
+  "url":"about:blank",
+  "injectedbundle":"libWPEInjectedBundle.so",
+  "transparent":true,
+  "compositor":"noaa",
+  "inspector":":::10001",
+  "fps":true,
+  "cursor":false,
+  "touch":false,
+  "msebuffers":"audio:6m,video:45m,text:1m",
+  "memoryprofile":"192m",
+  "memorypressure":"databaseprocess:50m,networkprocess:50m,webprocess:200m,rpcprocess:50m",
+  "mediadiskcache":false,
+  "diskcache":10,
+  "xhrcache":true,
+  "webgl":true,
+  "threadedpainting":1,
+  "clientidentifier":"wst-smartscreenapp",
+  "localstoragesize":100,
+  "logtosystemconsoleenabled":true,
+  "watchdogchecktimeoutinseconds":30,
+  "watchdoghangthresholdtinseconds":180,
+  "loadblankpageonsuspendenabled":true,
+  "root":{
+   "outofprocess":true
+  }
+ }
+}

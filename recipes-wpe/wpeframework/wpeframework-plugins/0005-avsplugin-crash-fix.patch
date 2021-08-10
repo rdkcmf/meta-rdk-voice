@@ -1,0 +1,26 @@
+From 3567c7f71a953b553ae97fdb4767b02349fb3df4 Mon Sep 17 00:00:00 2001
+From: Lakshmipriya <Lakshmipriya_Purushan@comcast.com>
+Date: Mon, 10 May 2021 07:16:45 +0000
+Subject: [PATCH 1/1] VIP7802-408 : Crash while enabling AVS plugin
+
+Reason for change: Provided as a patch for this issue
+Risks: Low
+---
+ WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+index 82452af..3402fd9 100644
+--- a/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
++++ b/WPEPluginAVS/Impl/AVSDevice/AVSDevice.cpp
+@@ -565,6 +565,7 @@ namespace Plugin {
+         }
+ 
+         streams.push_back(configStream);
++	return true;
+     }
+ 
+     bool AVSDevice::Deinitialize()
+-- 
+2.17.1
+

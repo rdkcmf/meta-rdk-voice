@@ -1,0 +1,12 @@
+[Unit]
+Description=Alexa demo
+After=multi-user.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/SampleApp /home/root/Alexa_SDK/Integration/AlexaClientSDKConfig.json /home/root/resources DEBUG9
+Restart=always
+Type=forking
+
+[Install]
+WantedBy=multi-user.target

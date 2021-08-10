@@ -1,0 +1,53 @@
+From ffdca357ef362269347f84f06319f001805bc8b4 Mon Sep 17 00:00:00 2001
+From: Manjunath HK <manjunath_kariyanna2@comcast.com>
+Date: Wed, 15 Jul 2020 07:30:06 +0000
+Subject: [PATCH] Gstareamer Audio HW Rank Adjustment To Support Different
+ Devices
+
+Signed-off-by: Manjunath HK <manjunath_kariyanna2@comcast.com>
+---
+ .../GStreamerMediaPlayer/src/BaseStreamSource.cpp  | 27 ++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+
+diff --git a/MediaPlayer/GStreamerMediaPlayer/src/BaseStreamSource.cpp b/MediaPlayer/GStreamerMediaPlayer/src/BaseStreamSource.cpp
+index 61e98ce5f..43a0e699b 100644
+--- a/MediaPlayer/GStreamerMediaPlayer/src/BaseStreamSource.cpp
++++ b/MediaPlayer/GStreamerMediaPlayer/src/BaseStreamSource.cpp
+@@ -126,7 +126,34 @@ BaseStreamSource::~BaseStreamSource() {
+     uninstallOnReadDataHandler();
+ }
+ 
++#define BRCM_NEW_RANK       1
++#define BRCM_PLUGINS_MAX    5
++
++void disable_hw_audio_dec(void)
++{
++GstPluginFeature *feature;
++const char *plugins_to_disable[BRCM_PLUGINS_MAX] = {
++    "brcmaudfilter",
++    "brcmaudiodecoder",
++    "brcmaudiosink",
++    "brcmmp3decoder",
++    "brcmtsdemux"
++    };
++
++GstRegistry* reg = gst_registry_get();
++
++for (int i=0; i<BRCM_PLUGINS_MAX; i++) {
++    feature = gst_registry_lookup_feature(reg, plugins_to_disable[i]);
++    if(feature) {
++        gst_plugin_feature_set_rank(feature, BRCM_NEW_RANK);
++        gst_object_unref(feature);
++        g_print("set %s rank as %d\n", plugins_to_disable[i], BRCM_NEW_RANK);
++     }
++ }
++}
++
+ bool BaseStreamSource::init(const AudioFormat* audioFormat) {
++    disable_hw_audio_dec();
+     auto appsrc = reinterpret_cast<GstAppSrc*>(gst_element_factory_make("appsrc", "src"));
+     if (!appsrc) {
+         ACSDK_ERROR(LX("initFailed").d("reason", "createSourceElementFailed"));
+-- 
+2.14.2
+
