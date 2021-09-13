@@ -71,7 +71,7 @@
                                 "value": 130
                             },
                             "touch": "UNSUPPORTED",
-                            "keyboard": "SUPPORTED",
+                            "keyboard": "UNSUPPORTED",
                             "video": "SUPPORTED",
                             "dialog": "SUPPORTED"
                         },
@@ -83,9 +83,9 @@
                                 "value": 130
                             },
                             "touch": "UNSUPPORTED",
-                            "keyboard": "SUPPORTED",
-                            "video": "UNSUPPORTED",
-                            "dialog": "UNSUPPORTED"
+                            "keyboard": "UNSUPPORTED",
+                            "video": "SUPPORTED",
+                            "dialog": "SUPPORTED"
                         }
                     ]
                 }
