@@ -8,6 +8,7 @@ SRC_URI += "file://0001-alexa-device-sdk-upgrade-1.23.patch"
 SRC_URI += "file://0002-smartscreen-upgrade-and-crash-fix-2.6.patch"
 SRC_URI += "file://0003-smart-screen-notification-and-audio-player-2.6.patch"
 SRC_URI += "file://0004-ss-notification-fix-2.6.patch"
+SRC_URI += "file://0008-Custom-skill-invocation-fix.patch"
 SRC_URI += "file://AlexaClientSDKConfig-1.23.json"
 SRC_URI += "file://SmartScreenSDKConfig-2.6.json"
 
