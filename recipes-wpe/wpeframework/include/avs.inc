@@ -4,7 +4,7 @@ SRC_URI += " \
         file://0002-cmake-list-plugin.patch \
  "
 
-SRCREV_pluginavs = "${AUTOREV}"
+SRCREV_pluginavs = "ecaca10d3aa60824007f51b2b1d4dcb93168d1af"
 SRCREV_FORMAT="thunderNanoServices_pluginavs"
 
 #Add Smart Screen dependency conditionally.
