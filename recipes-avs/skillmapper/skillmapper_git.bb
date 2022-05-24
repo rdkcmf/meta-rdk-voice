@@ -3,9 +3,12 @@ LICENSE = "Apache-2.0"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 FILESEXTRAPATHS_prepend := "${THISDIR}/:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=b1e01b26bacfc2232046c90a330332b3"
 
-SRC_URI  = "${CMF_GIT_ROOT}/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=rdk-next;name=skillmapper"
+SRC_URI  = "${CMF_GIT_ROOT}/rdk/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=rdk-next;name=skillmapper"
+SRC_URI += " ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0001-overlay-support-for-speaking-state.patch', '', d)}"
+SRC_URI += " ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0002-xr-speech-avs-overlay-config.patch', '', d)}"
 
 SRCREV_skillmapper ="${AUTOREV}"
 #SRCREV_FORMAT = "skillmapper"

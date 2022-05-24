@@ -1,0 +1,71 @@
+From e1ae78629a5feccd3d414f175ef7084ccb30fc05 Mon Sep 17 00:00:00 2001
+From: Arun P Madhavan <arun_madhavan@comcast.com>
+Date: Wed, 19 Jan 2022 21:03:55 +0000
+Subject: [PATCH 2/2] COMCAST-794: RDK Voice stack - T4H session support
+
+Reason for change: Temporary - Work-around for session control.
+Remove once T4H RCU Firmware adopts RDK RCU Spec.
+Test Procedure: Enable respective feature and test key trigger.
+Risks: Low
+License: Inherited
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Arun Madhavan <arun_madhavan@comcast.com>
+---
+ src/ble/ctrlm_hal_ble.cpp | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/ble/ctrlm_hal_ble.cpp b/src/ble/ctrlm_hal_ble.cpp
+index 5c218c5..96e5e47 100644
+--- a/src/ble/ctrlm_hal_ble.cpp
++++ b/src/ble/ctrlm_hal_ble.cpp
+@@ -1884,6 +1884,7 @@ static int ctrlm_hal_ble_OpenKeyInputDevice(unsigned long long ieee_address)
+ // -------------------------------------------------------------------------------------------------------------
+ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long long macAddr)
+ {
++    static bool voice_streaming = false;
+     // These are 'seperator' events.  Ignore for now.
+     if (event->code == 0) {
+         return 0;
+@@ -1896,7 +1897,9 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
+                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
+                     LOG_INFO("%s: CODE_VOICE_KEY button PRESSED event for device: 0x%llX\n", __FUNCTION__, macAddr);
+                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
+-
++                    if (voice_streaming) {
++                        voice_streaming = false;
++                    } else {
+                     if (NULL == g_ctrlm_hal_ble->main_init.req_voice_session_begin) {
+                         LOG_WARN("%s: req_voice_session_begin is NULL!!\n", __FUNCTION__);
+                     } else {
+@@ -1905,14 +1908,18 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
+                         // Send voice session begin request up to the BLE network
+                         if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.req_voice_session_begin(g_ctrlm_hal_ble->main_init.network_id, &req_params)) {
+                             LOG_ERROR("%s: voice session begin request FAILED\n", __FUNCTION__);
++                        } else {
++                            voice_streaming = true;
+                         }
+                     }
++                    }
+                 }
+                 else if (0 == event->value) {
+                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
+                     LOG_INFO("%s: CODE_VOICE_KEY button RELEASED event for device: 0x%llX\n", __FUNCTION__, macAddr);
+                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
+ 
++                    if (!voice_streaming) {
+                     if (NULL == g_ctrlm_hal_ble->main_init.req_voice_session_end) {
+                         LOG_WARN("%s: req_voice_session_end is NULL!!\n", __FUNCTION__);
+                     } else {
+@@ -1923,6 +1930,7 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
+                             LOG_ERROR("%s: voice session end request FAILED\n", __FUNCTION__);
+                         }
+                     }
++                    }
+                 }
+                 else if (2 == event->value) {
+                     // This is the key repeat event sent while holding down the button
+-- 
+2.17.1
+

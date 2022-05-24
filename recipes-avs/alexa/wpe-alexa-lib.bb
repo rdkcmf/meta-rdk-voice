@@ -23,6 +23,7 @@ SRC_URI += "file://0001-prevent_crashes_on_rpi.patch;striplevel=1"
 
 LDFLAGS += "-pthread"
 INSANE_SKIP_${PN} = "dev-so"
+INSANE_SKIP_${PN} += "dev-deps"
 TARGET_CC_ARCH += "${LDFLAGS}"
 
 S = "${WORKDIR}/git"

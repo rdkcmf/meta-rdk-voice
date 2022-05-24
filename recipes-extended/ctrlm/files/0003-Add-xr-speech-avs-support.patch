@@ -1,0 +1,254 @@
+From afd390415d1202b1473e071c9cfc9020aeaf4bfc Mon Sep 17 00:00:00 2001
+From: Aswin M <Aswin_M@comcast.com>
+Date: Thu, 2 Jun 2022 17:31:13 +0530
+Subject: [PATCH] HX44X-149 : Bring in Voice Support
+
+Reason for change: Integrate xr-speech-avs with control manager
+Test Procedure: Build with sdt and xr-speech-avs enabled.
+Risks: Low
+License: Inherited
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+Change-Id: I56e4c4c5299645f21a231fb52617b637036ddaff
+---
+ src/Makefile.am                               |  2 +-
+ src/ble/ctrlm_hal_ble.cpp                     | 27 +++++++++++
+ .../endpoints/ctrlm_voice_endpoint_sdt.cpp    | 48 +++++++++----------
+ .../endpoints/ctrlm_voice_endpoint_sdt.h      |  6 +--
+ 4 files changed, 55 insertions(+), 28 deletions(-)
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 916560e..40c18c3 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -262,7 +262,7 @@ endif
+ 
+ if SUPPORT_VOICE_DEST_ALSA
+ AM_CPPFLAGS += -DSUPPORT_VOICE_DEST_ALSA
+-AM_LDFLAGS  += -lvirtualmic
++AM_LDFLAGS  += -lxr-speech-avs
+ endif
+ 
+ if DUNFELL_BUILD_ENABLED
+diff --git a/src/ble/ctrlm_hal_ble.cpp b/src/ble/ctrlm_hal_ble.cpp
+index 2f9893a..163e9c8 100644
+--- a/src/ble/ctrlm_hal_ble.cpp
++++ b/src/ble/ctrlm_hal_ble.cpp
+@@ -44,6 +44,7 @@
+ #include "../ctrlm_utils.h"
+ #include "../json_config.h"
+ #include "ctrlm_ble_network.h"
++#include "AVS.h"
+ 
+ using namespace std;
+ 
+@@ -140,6 +141,7 @@ static ctrlm_hal_result_t ctrlm_hal_ble_req_HandleDeepsleep(ctrlm_hal_ble_Handle
+ 
+ static ctrlm_hal_result_t ctrlm_hal_ble_req_Terminate(void);
+ 
++static void                 ctrlm_hal_ble_avs_init(void);
+ 
+ // -----------------------------------
+ // Utility functions
+@@ -544,6 +546,7 @@ static void ctrlm_hal_ble_DBusOnPropertyChangedCB ( GDBusProxy *proxy,
+                     }
+                 }
+                 g_mutex_unlock(&g_ctrlm_hal_ble->mutex_metadata);
++		ctrlm_hal_ble_avs_init();
+             }
+ 
+             if (NULL != g_ctrlm_hal_ble->main_init.ind_status && CTRLM_HAL_BLE_PROPERTY_UNKNOWN != rcu_status.property_updated) {
+@@ -598,6 +601,10 @@ static void ctrlm_hal_ble_DBusOnSignalReceivedCB (  GDBusProxy *proxy,
+                     if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.ind_paired(g_ctrlm_hal_ble->main_init.network_id, &params)) {
+                         LOG_ERROR("%s: RCU paired indication failed\n", __FUNCTION__);
+                     }
++					
++		    if (true == rcu_status.rcu_data.connected) {
++			ctrlm_hal_ble_avs_init();
++		    }
+                 }
+             } else {
+                 LOG_ERROR("%s: Failed to setup HAL metadata for device: 0x%llX, not sending indication up to network\n", __FUNCTION__,ieee_address);
+@@ -2186,3 +2193,23 @@ void *ctrlm_hal_ble_KeyMonitorThread(void *data)
+ // -------------------------------------------------------------------------------------------------------------
+ // END - Key Monitor Thread
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
++
++////////////////////////////////////////////////////////////////////////////////////////////////////////////////
++// BEGIN - AVS Init Function
++// -------------------------------------------------------------------------------------------------------------
++static void ctrlm_hal_ble_avs_init(void)
++{
++	static bool AVS_Init_Flag = false;
++	
++	if(!AVS_Init_Flag)
++	{
++		LOG_DEBUG("RCU Connected Initialize AVS..\n");
++        	AVS_Initialize();
++		AVS_Init_Flag = true;
++	}
++	
++	
++}
++// -------------------------------------------------------------------------------------------------------------
++// END - AVS Init Function
++////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+diff --git a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
+index 751b54b..7913abd 100644
+--- a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
++++ b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
+@@ -25,7 +25,7 @@ typedef struct {
+     xrsr_session_config_out_t       configuration;
+     xrsr_callback_session_config_t  callback;
+     bool                            has_stream_params;
+-    vmic_sdt_stream_params_t        stream_params;
++    avs_sdt_stream_params_t        stream_params;
+     rdkx_timestamp_t                timestamp;
+ } ctrlm_voice_session_begin_cb_sdt_t;
+ 
+@@ -57,14 +57,14 @@ typedef struct {
+ 
+ // Function Implementations
+ ctrlm_voice_endpoint_sdt_t::ctrlm_voice_endpoint_sdt_t(ctrlm_voice_t *voice_obj) : ctrlm_voice_endpoint_t(voice_obj) {
+-    this->vmic_obj_sdt     = NULL;
++    this->avs_obj_sdt     = NULL;
+     this->voice_message_available = false;
+ }
+ 
+ ctrlm_voice_endpoint_sdt_t::~ctrlm_voice_endpoint_sdt_t() {
+-    if(this->vmic_obj_sdt) {
+-        vmic_sdt_destroy(this->vmic_obj_sdt);
+-        this->vmic_obj_sdt = NULL;
++    if(this->avs_obj_sdt) {
++        avs_sdt_destroy(this->avs_obj_sdt);
++        this->avs_obj_sdt = NULL;
+     }
+ }
+ 
+@@ -75,13 +75,13 @@ bool ctrlm_voice_endpoint_sdt_t::open() {
+         return(false);
+     }
+   
+-    vmic_sdt_params_t      params_sdt = {
++    avs_sdt_params_t      params_sdt = {
+       .test_flag        = this->voice_obj->voice_stb_data_test_get(),
+       .user_data        = (void *)this
+    };
+ 
+-   if((this->vmic_obj_sdt = vmic_sdt_create(&params_sdt)) == NULL) {
+-      LOG_ERROR("%s: Failed to open speech vmic sdt\n", __FUNCTION__);
++   if((this->avs_obj_sdt = avs_sdt_create(&params_sdt)) == NULL) {
++      LOG_ERROR("%s: Failed to open speech avs sdt\n", __FUNCTION__);
+       return(false);
+    }
+ 
+@@ -94,25 +94,25 @@ bool ctrlm_voice_endpoint_sdt_t::get_handlers(xrsr_handlers_t *handlers) {
+         return(false);
+     }
+ 
+-   if(this->voice_obj == NULL || this->vmic_obj_sdt == NULL) {
++   if(this->voice_obj == NULL || this->avs_obj_sdt == NULL) {
+         LOG_ERROR("%s: Voice obj or Xrsv obj NULL\n", __FUNCTION__);
+         return(false);
+     }
+ 
+-    vmic_sdt_handlers_t handlers_vmic;
++    avs_sdt_handlers_t handlers_avs;
+     memset(handlers, 0, sizeof(xrsr_handlers_t));
+-    memset(&handlers_vmic, 0, sizeof(handlers_vmic));
++    memset(&handlers_avs, 0, sizeof(handlers_avs));
+ 
+     // Set up handlers
+-    handlers_vmic.session_begin     = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin;
+-    handlers_vmic.session_end       = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_end;
+-    handlers_vmic.stream_begin      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_begin;
+-    handlers_vmic.stream_kwd        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_kwd;
+-    handlers_vmic.stream_end        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_end;
+-    handlers_vmic.connected         = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_connected;
+-    handlers_vmic.disconnected      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_disconnected;
+-
+-    if(!vmic_sdt_handlers(this->vmic_obj_sdt, &handlers_vmic, handlers)) {
++    handlers_avs.session_begin     = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin;
++    handlers_avs.session_end       = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_end;
++    handlers_avs.stream_begin      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_begin;
++    handlers_avs.stream_kwd        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_kwd;
++    handlers_avs.stream_end        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_end;
++    handlers_avs.connected         = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_connected;
++    handlers_avs.disconnected      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_disconnected;
++
++    if(!avs_sdt_handlers(this->avs_obj_sdt, &handlers_avs, handlers)) {
+         LOG_ERROR("%s: failed to get handlers sdt\n", __FUNCTION__);
+         return(false);
+     }
+@@ -121,7 +121,7 @@ bool ctrlm_voice_endpoint_sdt_t::get_handlers(xrsr_handlers_t *handlers) {
+ }
+ 
+ bool ctrlm_voice_endpoint_sdt_t::voice_init_set(const char *blob) const {
+-    if(this->voice_obj == NULL || this->vmic_obj_sdt == NULL) {
++    if(this->voice_obj == NULL || this->avs_obj_sdt == NULL) {
+         LOG_ERROR("%s: not ready for this request\n", __FUNCTION__);
+         return(false);
+     }
+@@ -154,7 +154,7 @@ void ctrlm_voice_endpoint_sdt_t::voice_message_send(void *data, int size) {
+     if(dqm == NULL || dqm->result == NULL || dqm->msg == NULL) {
+         LOG_ERROR("%s: Null data\n", __FUNCTION__);
+         return;
+-    } else if(this->voice_obj == NULL || this->vmic_obj_sdt == NULL) {
++    } else if(this->voice_obj == NULL || this->avs_obj_sdt == NULL) {
+         LOG_ERROR("%s: not ready for this request\n", __FUNCTION__);
+         *dqm->result = false;
+     } else {
+@@ -189,7 +189,7 @@ void ctrlm_voice_endpoint_sdt_t::voice_session_begin_callback_sdt(void *data, in
+ 
+     // Handle stream parameters
+     if(dqm->has_stream_params) {
+-       vmic_sdt_stream_params_t *stream_params = &dqm->stream_params;
++       avs_sdt_stream_params_t *stream_params = &dqm->stream_params;
+        if(info.has_stream_params) {
+           stream_params->keyword_sample_begin               = info.stream_params.pre_keyword_sample_qty; // in samples
+           stream_params->keyword_sample_end                 = (info.stream_params.pre_keyword_sample_qty + info.stream_params.keyword_sample_qty); // in samples
+@@ -324,7 +324,7 @@ void ctrlm_voice_endpoint_sdt_t::voice_session_server_return_code_sdt(long ret_c
+     this->voice_obj->voice_server_return_code_callback(ret_code);
+ }
+ 
+-void ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, vmic_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data) {
++void ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, avs_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data) {
+ 
+ ctrlm_voice_endpoint_sdt_t *endpoint = (ctrlm_voice_endpoint_sdt_t *)user_data;
+     ctrlm_voice_session_begin_cb_sdt_t msg;
+diff --git a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h
+index 7b2aa23..5699e9a 100644
+--- a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h
++++ b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h
+@@ -20,7 +20,7 @@
+ #define __CTRLM_VOICE_ENDPOINT_SDT_H__
+ 
+ #include "ctrlm_voice_endpoint.h"
+-#include "vmic_sdt.h"
++#include "avs_sdt.h"
+ 
+ class ctrlm_voice_endpoint_sdt_t : public ctrlm_voice_endpoint_t {
+ public:
+@@ -42,7 +42,7 @@ protected:
+     void voice_message_send(void *data, int size);
+ 
+ protected:
+-    static void ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, vmic_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, avs_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data);
+     static void ctrlm_voice_handler_sdt_session_end(const uuid_t uuid, xrsr_session_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data);
+     static void ctrlm_voice_handler_sdt_stream_begin(const uuid_t uuid, xrsr_src_t src, rdkx_timestamp_t *timestamp, void *user_data);
+     static void ctrlm_voice_handler_sdt_stream_kwd(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data);
+@@ -50,7 +50,7 @@ protected:
+     static void ctrlm_voice_handler_sdt_connected(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data);
+     static void ctrlm_voice_handler_sdt_disconnected(const uuid_t uuid, bool retry, rdkx_timestamp_t *timestamp, void *user_data);
+ protected:
+-    void       *vmic_obj_sdt;
++    void       *avs_obj_sdt;
+ private:
+     long        server_ret_code;
+     // Voice Message Synchronization.. All accesses of these variables MUST be on main thread
+-- 
+2.33.0.windows.2
+

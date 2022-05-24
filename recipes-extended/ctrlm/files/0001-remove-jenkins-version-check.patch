@@ -1,0 +1,35 @@
+From 8231c60b9896aaeff49baf1def3ba4252722589d Mon Sep 17 00:00:00 2001
+From: Aswin M <Aswin_M@comcast.com>
+Date: Thu, 2 Jun 2022 21:56:28 +0530
+Subject: [PATCH] HX44X-149 : Bring in Phase 1 Voice Support
+
+Reason for change: rdk_version_parse_version function returns 1 when there is no jenkins build number,which
+causes the control manager to exit
+Test Procedure: Check whether control manager runs without jenkins build info.
+Risks: Low
+License: Inherited
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+Change-Id: I4364ed7eca6fbf5eb83e0b4ff861d437dd27b317
+---
+ src/ctrlm_main.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/ctrlm_main.cpp b/src/ctrlm_main.cpp
+index 9a235c3..fd1b711 100644
+--- a/src/ctrlm_main.cpp
++++ b/src/ctrlm_main.cpp
+@@ -573,7 +573,7 @@ int main(int argc, char *argv[]) {
+    LOG_INFO("ctrlm_main: load version\n");
+    if(!ctrlm_load_version()) {
+       LOG_FATAL("ctrlm_main: failed to load version\n");
+-      return(-1);
++      // Do not crash the program here return(-1);
+    }
+ 
+    LOG_INFO("ctrlm_main: load device mac\n");
+-- 
+2.33.0.windows.2
+

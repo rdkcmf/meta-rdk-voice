@@ -40,6 +40,7 @@ do_install_prepend() {
 }
 
 INSANE_SKIP_${PN} = "dev-so"
+INSANE_SKIP_${PN} += "dev-deps"
 TARGET_CC_ARCH += "${LDFLAGS}"
 
 AVS_DIR ?= "/home/root/Alexa_SDK"
@@ -86,12 +87,13 @@ do_install_append() {
     do
         cp -af $dirList/* ${D}${includedir}/SmartScreen/
     done
-
+#Copy SampleApplication header file from SampleApp to SmartScreen Dir
+    cp -f ${D}${includedir}/SampleApp/SampleApplication.h ${D}${includedir}/SmartScreen/SampleApp/
 }
 
 
 BBCLASSEXTEND = "native"
-FILES_${PN} += "${AVS_DIR}/alexa-smart-screen   /sounds /database ${bindir} ${libdir}  ${includedir}"
+FILES_${PN} += "${AVS_DIR}/alexa-smart-screen /sounds /database ${bindir} ${libdir}  ${includedir}"
 FILES_${PN} += "${sysconfdir}/* "
 ASNEEDED=""
 

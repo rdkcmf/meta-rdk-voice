@@ -1,0 +1,606 @@
+From 3be42e2ce5b33fe3e447ab2bb1180b54d6410c98 Mon Sep 17 00:00:00 2001
+From: Arun P Madhavan <arun_madhavan@comcast.com>
+Date: Wed, 26 Jan 2022 19:40:42 +0000
+Subject: [PATCH] COMCAST-794: T4H RCU Support
+
+Reason for change: Add T4H RCU model and related UUID details.
+This is a temporary change until T4H adopts RDK RCU FW Spec.
+Test Procedure: Enable respective feature and test key trigger.
+Risks: Medium
+License: Inherited
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Arun Madhavan <arun_madhavan@comcast.com>
+---
+ daemon/resources/config.rdk.json              |  21 +-
+ .../bleservices/gatt/gatt_audiopipe.cpp       |  23 +-
+ .../blercu/bleservices/gatt/gatt_audiopipe.h  |   7 +-
+ .../bleservices/gatt/gatt_audioservice.cpp    | 240 ++++++++++++++++--
+ .../bleservices/gatt/gatt_audioservice.h      |   6 +
+ .../blercu/bleservices/gatt/gatt_services.cpp |  10 +-
+ daemon/source/utils/bleuuid.cpp               |  15 +-
+ daemon/source/utils/bleuuid.h                 |   5 +-
+ 8 files changed, 284 insertions(+), 43 deletions(-)
+
+diff --git a/daemon/resources/config.rdk.json b/daemon/resources/config.rdk.json
+index 5e12c63..b15ca8d 100644
+--- a/daemon/resources/config.rdk.json
++++ b/daemon/resources/config.rdk.json
+@@ -1,8 +1,8 @@
+ {
+ 	"timeouts": {
+ 		"discovery": 15000,
+-		"pair": 15000,
+-		"setup": 60000,
++		"pair": 30000,
++		"setup": 90000,
+ 		"unpair": 20000
+ 	},
+ 
+@@ -132,6 +132,23 @@
+ 				]
+ 			}
+ 		},
++		{
++			"name": "S1",
++			"manufacturer": "Tech4Home",
++			"oui": "FF:FF:FF",
++			"pairingNameFormat": "Notus S1",
++			"scanNameFormat": "Notus S1",
++			"filterBytes": [ 19, 21 ],
++			"services": {
++				"type": "gatt",
++				"supported": [
++					"audio",
++					"battery",
++					"deviceInfo",
++					"infrared"
++				]
++			}
++		},
+ 		{
+ 			"name": "LC103",
+ 			"manufacturer": "RemoteSolutions",
+diff --git a/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.cpp b/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.cpp
+index b03b33f..98dfd59 100644
+--- a/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.cpp
++++ b/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.cpp
+@@ -281,8 +281,8 @@ int GattAudioPipe::framesExpected() const
+ 
+ 	int timeEstimate = static_cast<int>(msecsElapsed / 12);
+ 
+-	qDebug("audio frames expected: timeBased=%d, seqNumberBased=%d",
+-	       timeEstimate, (m_frameCount + m_missedSequences));
++    qDebug("audio frames expected: timeBased=%d, seqNumberBased=%d",
++           timeEstimate, (m_frameCount + m_missedSequences));
+ 
+ 	// if the missed sequence count is within 16 frames of the time estimate
+ 	// then use that, otherwise use the time
+@@ -321,14 +321,14 @@ FileDescriptor GattAudioPipe::takeOutputReadFd()
+  	if the object wasn't created with a notification pipe.
+ 
+  */
+-void GattAudioPipe::addNotification(const quint8 value[20])
++void GattAudioPipe::addNotification(const quint8 value[100], int received_bytes)
+ {
+ 	// add the notification to the buffer, if we have a complete frame
+ 	// then pass on to the decoder
+-	memcpy(m_frameBuffer + m_frameBufferOffset, value, 20);
+-	m_frameBufferOffset += 20;
++	memcpy(m_frameBuffer + m_frameBufferOffset, value, received_bytes);
++	m_frameBufferOffset += received_bytes;
+ 
+-	if (m_frameBufferOffset == 100) {
++	if (m_frameBufferOffset == 105) {
+ 		m_frameBufferOffset = 0;
+ 
+ 		if (Q_UNLIKELY(!m_running))
+@@ -346,14 +346,14 @@ void GattAudioPipe::addNotification(const quint8 value[20])
+ 	output pipe.
+ 
+  */
+-void GattAudioPipe::processAudioFrame(const quint8 frame[100])
++void GattAudioPipe::processAudioFrame(const quint8 frame[105])
+ {
+ 	const quint8 sequenceNumber = frame[0];
+ 	const quint8 stepIndex = frame[1];
+ 	const qint16 prevValue = (qint16(frame[2]) << 0) | (qint16(frame[3]) << 8);
+ 
+ 	qDebug("frame: [%3hhu] <%3hhu,0x%04x> %02x %02x %02x ...",
+-	        sequenceNumber, stepIndex, quint16(prevValue), frame[4], frame[5], frame[6]);
++	        sequenceNumber, stepIndex, quint16(prevValue), frame[5], frame[6], frame[7]);
+ 
+ 
+ 	// if not running then just discard the frame
+@@ -381,19 +381,18 @@ void GattAudioPipe::processAudioFrame(const quint8 frame[100])
+ 	// increment the count of audio frames received
+ 	m_frameCount++;
+ 
+-
+ 	size_t bufferSize;
+ 	if (m_encoding == OutputEncoding::PCM16) {
+ 		// feed the s/w decoder
+-		m_codec->decodeFrame(stepIndex, prevValue, frame + 4, (96 * 2), m_decodeBuffer);
++		m_codec->decodeFrame(stepIndex, prevValue, frame + 5, (100 * 2), m_decodeBuffer);
+ 		bufferSize = sizeof(m_decodeBuffer);
+ 
+ 	} else if (m_encoding == OutputEncoding::ADPCM) {
+ 		static_assert(sizeof(m_decodeBuffer) >= 100, "to small decode buffer size");
+ 
+ 		// just copy the raw data in ADCPM mode
+-		memcpy(m_decodeBuffer, frame, 100);
+-		bufferSize = 100;
++		memcpy(m_decodeBuffer, frame, 105);
++		bufferSize = 105;
+ 
+ 	} else {
+ 		qError("invalid output audio encoding format");
+diff --git a/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.h b/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.h
+index 9f13d89..d716125 100644
+--- a/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.h
++++ b/daemon/source/blercu/bleservices/gatt/gatt_audiopipe.h
+@@ -81,6 +81,7 @@ public:
+ 	FileDescriptor takeOutputReadFd();
+ 
+ 	void addNotification(const quint8 value[20]);
++    void addNotification(const quint8 value[100],int received_bytes);
+ 
+ signals:
+ 	void outputPipeClosed();
+@@ -88,7 +89,7 @@ signals:
+ private:
+ 	void onOutputPipeException(int pipeFd);
+ 
+-	void processAudioFrame(const quint8 frame[100]);
++	void processAudioFrame(const quint8 frame[105]);
+ 
+ private:
+ 	const OutputEncoding m_encoding;
+@@ -100,10 +101,10 @@ private:
+ 
+ 	QSharedPointer<UnixPipeNotifier> m_outputPipeNotifier;
+ 
+-	quint8 m_frameBuffer[100];
++	quint8 m_frameBuffer[105];
+ 	size_t m_frameBufferOffset;
+ 
+-	qint16 m_decodeBuffer[(96 * 2)];
++	qint16 m_decodeBuffer[(100 * 2)];
+ 
+ 	bool m_running;
+ 
+diff --git a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp
+index 4c7cd16..4c43aa6 100644
+--- a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp
++++ b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp
+@@ -101,12 +101,12 @@ void GattAudioService::init()
+ 	m_stateMachine.addTransition(ReadyState,                StopServiceRequestEvent,    IdleState);
+ 	m_stateMachine.addTransition(ReadyState,                StartStreamingRequestEvent, EnableNotificationsState);
+ 
+-	m_stateMachine.addTransition(EnableNotificationsState,  NotificationsEnabledEvent,  StartStreamingState);
++	m_stateMachine.addTransition(EnableNotificationsState,  NotificationsEnabledEvent,  StreamingState);
+ 
+ 	m_stateMachine.addTransition(StartStreamingState,       StreamingStartedEvent,      StreamingState);
+ 
+-	m_stateMachine.addTransition(StreamingState,            StopStreamingRequestEvent,  StopStreamingState);
+-	m_stateMachine.addTransition(StreamingState,            OutputPipeCloseEvent,       StopStreamingState);
++	m_stateMachine.addTransition(StreamingState,            StopStreamingRequestEvent,  ReadyState);
++	m_stateMachine.addTransition(StreamingState,            OutputPipeCloseEvent,       ReadyState);
+ 
+ 	m_stateMachine.addTransition(StopStreamingState,        StreamingStoppedEvent,      ReadyState);
+ 
+@@ -238,6 +238,41 @@ bool GattAudioService::getAudioDataCharacteristic(const QSharedPointer<const Ble
+ 	return true;
+ }
+ 
++// -----------------------------------------------------------------------------
++/*!
++   \internal
++
++   Attempts to create a proxy to the GATT interface for the Audio Command
++   characteristic, returns \c true on success and \c false on failure.
++
++ */
++bool GattAudioService::getAudioCommandCharacteristic(const QSharedPointer<const BleGattService> &gattService)
++{
++   // don't re-create if we already have valid proxies
++   if (m_audioCommandCharacteristic && m_audioCommandCharacteristic->isValid())
++       return true;
++
++   // get the chararacteristic for the audio command
++   m_audioCommandCharacteristic = gattService->characteristic(BleUuid::AudioCommand);
++   if (!m_audioCommandCharacteristic || !m_audioCommandCharacteristic->isValid()) {
++       qWarning("failed to get audio command characteristic");
++       return false;
++   }
++
++   // nb: we don't need to bother getting the client configuration
++   // chararacteristic descriptor (CCCD) as bluez automatically sets the
++   // values when notifications are enabled
++
++
++   // connect to the value change notification, this is how we get the audio
++   // data notification packets which make up the frame
++   QObject::connect(m_audioCommandCharacteristic.data(),
++                    &BleGattCharacteristic::valueChanged,
++                    this, &GattAudioService::onAudioCommandNotification);
++
++   return true;
++}
++
+ // -----------------------------------------------------------------------------
+ /*!
+ 	Starts the service by sending a initial request for the audio to stop
+@@ -253,16 +288,14 @@ bool GattAudioService::start(const QSharedPointer<const BleGattService> &gattSer
+ 	}
+ 
+ 	// get the dbus proxies to the audio characteristics
+-	if (!getAudioGainCharacteristic(gattService) ||
+-	    !getAudioControlCharacteristic(gattService) ||
+-	    !getAudioDataCharacteristic(gattService) ||
+-	    !getAudioCodecsCharacteristic(gattService)) {
++	if (!getAudioCommandCharacteristic(gattService) ||
++	    !getAudioDataCharacteristic(gattService)) {
+ 		qWarning("failed to get one or more gatt characteristics");
+ 		return false;
+ 	}
+ 
+-	requestGainLevel();
+-	requestAudioCodecs();
++	//requestGainLevel();
++	//requestAudioCodecs();
+ 
+ 	// check we're not already started
+ 	if (m_stateMachine.state() != IdleState) {
+@@ -318,8 +351,7 @@ void GattAudioService::onEnteredState(int state)
+ {
+ 	switch (state) {
+ 		case IdleState:
+-			m_audioGainCharacteristic.reset();
+-			m_audioCtrlCharacteristic.reset();
++			m_audioCommandCharacteristic.reset();
+ 			m_audioDataCharacteristic.reset();
+ 			break;
+ 
+@@ -328,7 +360,7 @@ void GattAudioService::onEnteredState(int state)
+ 			break;
+ 
+ 		case EnableNotificationsState:
+-			onEnteredEnableNotificationsState();
++			EnterEnableCmdNotificationsState();
+ 			break;
+ 
+ 		case StartStreamingState:
+@@ -367,6 +399,149 @@ void GattAudioService::onExitedState(int state)
+ 	}
+ }
+ 
++// -----------------------------------------------------------------------------
++/*!
++   \internal
++
++   Private slot called upon entry to the 'disable notifications' state, this is
++   where we ask the system to set the CCCD and start funneling notifications to
++   the app.
++
++ */
++void GattAudioService::DisableCommandNotification()
++{
++   // lambda called if an error occurs disabling the notifications
++   const std::function<void(const QString&, const QString&)> errorCallback =
++       [this](const QString &errorName, const QString &errorMessage)
++       {
++           // this is bad if this happens as basically voice search won't
++           // work
++           qError() << "failed to disable audio notifications due to"
++                    << errorName << errorMessage;
++
++           m_lastStats.lastError = StreamingError::InternalError;
++           m_stateMachine.postEvent(GattErrorEvent);
++       };
++
++   // lamda called if notifications are successifully disabled
++   const std::function<void()> successCallback =
++       [this](void)
++       {
++           // Disable data notification
++           //DisableDataNotification();
++       };
++
++   // send a request to the bluez daemon to stop notifing us audio status
++   // level changes
++   Future<> result = m_audioCommandCharacteristic->enableNotifications(false);
++   if (!result.isValid() || result.isError()) {
++       errorCallback(result.errorName(), result.errorMessage());
++
++   } else if (result.isFinished()) {
++       successCallback();
++
++   } else {
++       // connect functors to the future async completion
++       result.connectErrored(this, errorCallback);
++       result.connectFinished(this, successCallback);
++   }
++}
++// -----------------------------------------------------------------------------
++/*!
++   \internal
++
++   Private slot called upon entry to the 'disable notifications' state, this is
++   where we ask the system to set the CCCD and start funneling notifications to
++   the app.
++
++ */
++void GattAudioService::DisableDataNotification()
++{
++   // lambda called if an error occurs disabling the notifications
++   const std::function<void(const QString&, const QString&)> errorCallback =
++       [this](const QString &errorName, const QString &errorMessage)
++       {
++           // this is bad if this happens as basically voice search won't
++           // work
++           qError() << "failed to disable audio notifications due to"
++                    << errorName << errorMessage;
++
++           m_lastStats.lastError = StreamingError::InternalError;
++           m_stateMachine.postEvent(GattErrorEvent);
++       };
++
++   // lamda called if notifications are successifully disabled
++   const std::function<void()> successCallback =
++       [this](void)
++       {
++           // Send ready signal
++           //emit ready();
++       };
++
++   // send a request to the bluez daemon to stop notifing us audio status
++   // level changes
++   Future<> result = m_audioDataCharacteristic->enableNotifications(false);
++   if (!result.isValid() || result.isError()) {
++       errorCallback(result.errorName(), result.errorMessage());
++
++   } else if (result.isFinished()) {
++       successCallback();
++
++   } else {
++       // connect functors to the future async completion
++       result.connectErrored(this, errorCallback);
++       result.connectFinished(this, successCallback);
++   }
++}
++// -----------------------------------------------------------------------------
++/*!
++   \internal
++
++   Private slot called upon entry to the 'enable notifications' state, this is
++   where we ask the system to set the CCCD and start funneling notifications to
++   the app.
++
++ */
++void GattAudioService::EnterEnableCmdNotificationsState()
++{
++   // lambda called if an error occurs enabling the notifications
++   const std::function<void(const QString&, const QString&)> errorCallback =
++       [this](const QString &errorName, const QString &errorMessage)
++       {
++           // this is bad if this happens as basically voice search won't
++           // work
++           qError() << "failed to enable audio notifications due to"
++                    << errorName << errorMessage;
++
++           m_lastStats.lastError = StreamingError::InternalError;
++           m_stateMachine.postEvent(GattErrorEvent);
++       };
++
++   // lamda called if notifications are successifully enabled
++   const std::function<void()> successCallback =
++       [this](void)
++       {
++           // Enable data notification
++           onEnteredEnableNotificationsState();
++       };
++
++   // send a request to the bluez daemon to start notifing us of battery
++   // level changes
++   Future<> result = m_audioCommandCharacteristic->enableNotifications(true);
++   if (!result.isValid() || result.isError()) {
++       errorCallback(result.errorName(), result.errorMessage());
++
++   } else if (result.isFinished()) {
++       successCallback();
++
++   } else {
++       // connect functors to the future async completion
++       result.connectErrored(this, errorCallback);
++       result.connectFinished(this, successCallback);
++   }
++}
++
++
+ // -----------------------------------------------------------------------------
+ /*!
+ 	\internal
+@@ -399,7 +574,6 @@ void GattAudioService::onEnteredEnableNotificationsState()
+ 			m_stateMachine.postEvent(NotificationsEnabledEvent);
+ 		};
+ 
+-
+ 	// send a request to the bluez daemon to start notifing us of battery
+ 	// level changes
+ 	Future<> result = m_audioDataCharacteristic->enableNotifications(true);
+@@ -664,24 +838,56 @@ void GattAudioService::onExitedStreamingSuperState()
+  */
+ void GattAudioService::onAudioDataNotification(const QByteArray &value)
+ {
++#if 0
+ 	// This way the streamingChanged signal is emitted only when we actually receive
+ 	// audio data.  But this should only be emitted for the first notification.
+ 	if (m_emitOneTimeStreamingSignal) {
+ 		emit streamingChanged(true);
+ 		m_emitOneTimeStreamingSignal = false;
+ 	}
+-
++#endif
++	qInfo("audio data notification received, size=%d",value.size());
+ 	// all notifications from the audio pipe should be 20 bytes in size, any
+ 	// other size is an error
+-	if (Q_UNLIKELY(value.size() != 20)) {
+-		qWarning("audio data notification not 20 bytes in size (%d bytes)",
++	if (Q_UNLIKELY((value.size() != 5) && (value.size() != 100) )) {
++		qWarning("audio data notification not expected bytes in size (%d bytes)",
+ 		         value.size());
+ 		return;
+ 	}
+ 
+ 	// add the notification to the audio pipe
+ 	if (m_audioPipe)
+-		m_audioPipe->addNotification(reinterpret_cast<const quint8*>(value.constData()));
++		m_audioPipe->addNotification(reinterpret_cast<const quint8*>(value.constData()),value.size());
++}
++
++// -----------------------------------------------------------------------------
++/*!
++   \internal
++
++   Called when a notification is received from the Audio Command characteristic.
++
++ */
++void GattAudioService::onAudioCommandNotification(const QByteArray &value)
++{
++   // This way the streamingChanged signal is emitted only when we actually receive
++   // audio data.  But this should only be emitted for the first notification.
++
++   qInfo("audio command notification received, value=%x",value[0]);
++
++   if (value[0] == 0x0A)
++   {
++       if (m_emitOneTimeStreamingSignal) {
++           emit streamingChanged(true);
++           m_emitOneTimeStreamingSignal = false;
++       }
++   }
++
++   else if(value[0] == 0x00)
++   {
++       //m_audioCommandCharacteristic->enableNotifications(false);
++       //m_audioDataCharacteristic->enableNotifications(false);
++       DisableCommandNotification();
++   }
+ }
+ 
+ // -----------------------------------------------------------------------------
+diff --git a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h
+index b3c6840..5951ba0 100644
+--- a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h
++++ b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h
+@@ -94,6 +94,7 @@ private:
+ 	bool getAudioGainCharacteristic(const QSharedPointer<const BleGattService> &gattService);
+ 	bool getAudioControlCharacteristic(const QSharedPointer<const BleGattService> &gattService);
+ 	bool getAudioDataCharacteristic(const QSharedPointer<const BleGattService> &gattService);
++    bool getAudioCommandCharacteristic(const QSharedPointer<const BleGattService> &gattService);
+ 
+ 	void requestGainLevel();
+ 	void requestAudioCodecs();
+@@ -115,6 +116,10 @@ private slots:
+ 	void onExitedStreamingSuperState();
+ 
+ 	void onAudioDataNotification(const QByteArray &value);
++    void DisableCommandNotification();
++    void DisableDataNotification();
++    void EnterEnableCmdNotificationsState();
++    void onAudioCommandNotification(const QByteArray &value);
+ 
+ 	void onOutputPipeClosed();
+ 
+@@ -134,6 +139,7 @@ private:
+ 	QSharedPointer<BleGattCharacteristic> m_audioCtrlCharacteristic;
+ 	QSharedPointer<BleGattCharacteristic> m_audioDataCharacteristic;
+ 	QSharedPointer<BleGattCharacteristic> m_audioCodecsCharacteristic;
++    QSharedPointer<BleGattCharacteristic> m_audioCommandCharacteristic;
+ 
+ 	StateMachine m_stateMachine;
+ 	qint64 m_timeoutEventId;
+diff --git a/daemon/source/blercu/bleservices/gatt/gatt_services.cpp b/daemon/source/blercu/bleservices/gatt/gatt_services.cpp
+index e19c954..135084a 100644
+--- a/daemon/source/blercu/bleservices/gatt/gatt_services.cpp
++++ b/daemon/source/blercu/bleservices/gatt/gatt_services.cpp
+@@ -133,13 +133,13 @@ void GattServices::init()
+ 	// Need to start RemoteControl service first so that we read the last keypress characterisitic as soon as possible
+ 	m_stateMachine.addTransition(StartingRemoteControlServiceState, RemoteControlServiceReadyEvent, StartingDeviceInfoServiceState);
+ 	m_stateMachine.addTransition(StartingDeviceInfoServiceState,    DeviceInfoServiceReadyEvent,    StartingBatteryServiceState);
+-	m_stateMachine.addTransition(StartingBatteryServiceState,       BatteryServiceReadyEvent,       StartingFindMeServiceState);
+-	m_stateMachine.addTransition(StartingFindMeServiceState,        FindMeServiceReadyEvent,        StartingAudioServiceState);
+-	m_stateMachine.addTransition(StartingAudioServiceState,         AudioServiceReadyEvent,         StartingInfraredServiceState);
+-	m_stateMachine.addTransition(StartingInfraredServiceState,      InfraredServiceReadyEvent,      StartingUpgradeServiceState);
++	m_stateMachine.addTransition(StartingBatteryServiceState,       BatteryServiceReadyEvent,       StartingAudioServiceState);
++//	m_stateMachine.addTransition(StartingFindMeServiceState,        FindMeServiceReadyEvent,        StartingAudioServiceState);
++	m_stateMachine.addTransition(StartingAudioServiceState,         AudioServiceReadyEvent,         ReadyState);
++//	m_stateMachine.addTransition(StartingInfraredServiceState,      InfraredServiceReadyEvent,      StartingUpgradeServiceState);
+ //	m_stateMachine.addTransition(StartingInfraredServiceState,      InfraredServiceReadyEvent,      StartingTouchServiceState);
+ //	m_stateMachine.addTransition(StartingTouchServiceState,         TouchServiceReadyEvent,         StartingUpgradeServiceState);
+-	m_stateMachine.addTransition(StartingUpgradeServiceState,       UpgradeServiceReadyEvent,       ReadyState);
++//	m_stateMachine.addTransition(StartingUpgradeServiceState,       UpgradeServiceReadyEvent,       ReadyState);
+ 
+ 	m_stateMachine.addTransition(ResolvedServicesSuperState,        StopServicesRequestEvent,       StoppingState);
+ 	m_stateMachine.addTransition(StoppingState,                     ServicesStoppedEvent,           IdleState);
+diff --git a/daemon/source/utils/bleuuid.cpp b/daemon/source/utils/bleuuid.cpp
+index 1fc7674..878ce14 100644
+--- a/daemon/source/utils/bleuuid.cpp
++++ b/daemon/source/utils/bleuuid.cpp
+@@ -53,7 +53,7 @@ void BleUuid::registerType()
+ #define BASE_UUID_b6   0x9B
+ #define BASE_UUID_b7   0x34
+ #define BASE_UUID_b8   0xFB
+-
++#if 0
+ // The following is the base UUID for sky defined bluetooth APIs
+ //   {00000000-BDF0-407C-AAFF-D09967F31ACD}
+ #define SKY_UUID_w1    0xBDF0
+@@ -66,7 +66,18 @@ void BleUuid::registerType()
+ #define SKY_UUID_b6    0xF3
+ #define SKY_UUID_b7    0x1A
+ #define SKY_UUID_b8    0xCD
+-
++#endif
++//   {00000000-A000-B000-C000-987654321000}
++#define SKY_UUID_w1    0xA000
++#define SKY_UUID_w2    0xB000
++#define SKY_UUID_b1    0xC0
++#define SKY_UUID_b2    0x00
++#define SKY_UUID_b3    0x98
++#define SKY_UUID_b4    0x76
++#define SKY_UUID_b5    0x54
++#define SKY_UUID_b6    0x32
++#define SKY_UUID_b7    0x10
++#define SKY_UUID_b8    0x00
+ 
+ // -----------------------------------------------------------------------------
+ /*!
+diff --git a/daemon/source/utils/bleuuid.h b/daemon/source/utils/bleuuid.h
+index c4003cf..7a81296 100644
+--- a/daemon/source/utils/bleuuid.h
++++ b/daemon/source/utils/bleuuid.h
+@@ -51,7 +51,7 @@ public:
+ 	};
+ 
+ 	enum SkyServiceType {
+-		SkyQVoice = 0xf800,
++		SkyQVoice = 0xF0E0D000,
+ 		SkyQInfrared = 0xf801,
+ 		SkyQFirmwareUpgrade = 0xf802,
+ 		ComcastRemoteControl = 0xf803,
+@@ -89,7 +89,8 @@ public:
+ 		AudioCodecs = 0xea00,
+ 		AudioGain = 0xea01,
+ 		AudioControl = 0xea02,
+-		AudioData = 0xea03,
++		AudioData = 0xF0E0D002,
++       AudioCommand = 0xF0E0D001,
+ 		InfraredStandby = 0xeb01,
+ 		InfraredCodeId = 0xeb02,
+ 		InfraredSignal = 0xeb03,
+-- 
+2.17.1
+

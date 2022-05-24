@@ -1,0 +1,50 @@
+From 6fb7424b7d8c1db022ded6172de616d64b247567 Mon Sep 17 00:00:00 2001
+From: Aswin M <Aswin_M@comcast.com>
+Date: Thu, 2 Jun 2022 18:54:13 +0530
+Subject: [PATCH] REFPLTV-1180 HX44X-148: Bring in Voice Support
+
+Reason for change: Enable SDT data flow and session end.
+Test Procedure: Enable respective feature and test the voice data flow.
+Risks: Low
+Source: RDKM
+License: Inherited
+Upstream-Status: Pending
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+Change-Id: Ica70fa5e120a50f16cd72e926fd7acbf1cbc2296
+---
+ src/xrsr.c              | 5 +++++
+ src/xrsr_protocol_sdt.c | 1 +
+ 2 files changed, 6 insertions(+)
+
+diff --git a/src/xrsr.c b/src/xrsr.c
+index b7aa57f..b4fcd21 100644
+--- a/src/xrsr.c
++++ b/src/xrsr.c
+@@ -1733,6 +1733,11 @@ void xrsr_msg_session_begin(const xrsr_thread_params_t *params, xrsr_thread_stat
+                // Call session begin handler
+                session_config->user_initiated = begin->user_initiated;
+ 
++               if (!begin->retry && sdt->handlers.session_begin != NULL) {
++                   XLOGD_INFO("Start SDT session....");
++                   (*sdt->handlers.session_begin)(sdt->handlers.data, sdt->uuid, g_xrsr.src, dst_index, detector_result_ptr, &sdt->session_config_out, NULL, &begin->timestamp, transcription_in);
++               }
++
+                int pipe_fd_read = -1;
+                if(!xrsr_speech_stream_begin(sdt->uuid, g_xrsr.src, sdt->dst_index, begin->xraudio_format, begin->user_initiated, &pipe_fd_read)) {
+                   XLOGD_ERROR("xrsr_speech_stream_begin failed");
+diff --git a/src/xrsr_protocol_sdt.c b/src/xrsr_protocol_sdt.c
+index e8b15e9..d970e6a 100644
+--- a/src/xrsr_protocol_sdt.c
++++ b/src/xrsr_protocol_sdt.c
+@@ -130,6 +130,7 @@ void xrsr_sdt_handle_fds(xrsr_state_sdt_t *sdt, fd_set *readfds, fd_set *writefd
+       } else if(rc == 0) { // EOF
+          XLOGD_INFO("pipe read EOF");
+          xrsr_sdt_event(sdt, SM_EVENT_EOS_PIPE, false);
++         xrsr_sdt_event(sdt, SM_EVENT_EOS, false);
+       } else {
+          XLOGD_INFO("pipe read <%d>", rc);
+          uint32_t bytes_read = (uint32_t)rc;
+-- 
+2.33.0.windows.2
+
