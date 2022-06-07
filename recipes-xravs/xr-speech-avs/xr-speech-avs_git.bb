@@ -2,7 +2,7 @@ SUMMARY = "xr-speech-avs library for control manager"
 LICENSE = "Apache-2.0"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
-LIC_FILES_CHKSUM = "file://${WORKDIR}/git/LICENSE;md5=175792518e4ac015ab6696d16c4f607e"
+LIC_FILES_CHKSUM = "file://../LICENSE;md5=175792518e4ac015ab6696d16c4f607e"
 include include/xr_speech_avs.inc
 
 S = "${WORKDIR}/git/xr-speech-avs"
