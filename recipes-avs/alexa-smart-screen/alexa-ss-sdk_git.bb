@@ -20,11 +20,21 @@ SRC_URI += "file://0002-Allow_disabling_GUIClient_and_set_install_path-2.6.patch
 SRC_URI += "file://0003-Add_install_for_version_file-2.6.patch;striplevel=1"
 SRC_URI += "file://0004-Build-SampleApp-as-library-2.6.patch;striplevel=1"
 SRC_URI += "file://0007-modify-ui-attributes-2.6.patch"
+SRC_URI += "file://0009-Add-support-for-GUI-external-JS-functions.patch"
+
+#OOBE-Screen
+SRC_URI  += "git://github.com/alexa/avs-sdk-oobe-screens-demo.git;branch=main;protocol=https;name=alexa-sdk-oobe-screens;destsuffix=avs-sdk-oobe-screens"
+SRC_URI += "file://0008-Add-interactive-authendication-screen-support.patch;patchdir=${WORKDIR}/avs-sdk-oobe-screens"
 
 include ${@bb.utils.contains('DISTRO_FEATURES', 'voice-chrome', "avs-voice-chrome.inc", "avs-voice-chrome-stub.inc", d)}
 
 #SDK 2.6
 SRCREV_alexa-ss-sdk ="03354f93c5494d847cd13cea93b3caccfe6603f4"
+
+#OOBE-Screen
+SRCREV_alexa-sdk-oobe-screens ="${AUTOREV}"
+
+SRCREV_FORMAT ="${AUTOREV}"
 
 LDFLAGS += "-pthread"
 
@@ -89,11 +99,16 @@ do_install_append() {
     done
 #Copy SampleApplication header file from SampleApp to SmartScreen Dir
     cp -f ${D}${includedir}/SampleApp/SampleApplication.h ${D}${includedir}/SmartScreen/SampleApp/
+# Autentication scheme
+    #install -d ${D}${AVS_DIR}/
+    cp -av --no-preserve=ownership ${WORKDIR}/avs-sdk-oobe-screens/ ${D}${AVS_DIR}/
+    cp -av --no-preserve=ownership ${D}${AVS_DIR}/alexa-smart-screen/main.bundle.js ${D}${AVS_DIR}/avs-sdk-oobe-screens/js/
+    mv ${D}${AVS_DIR}/avs-sdk-oobe-screens/ss-sdk.html ${D}${AVS_DIR}/avs-sdk-oobe-screens/index.html
 }
 
 
 BBCLASSEXTEND = "native"
-FILES_${PN} += "${AVS_DIR}/alexa-smart-screen /sounds /database ${bindir} ${libdir}  ${includedir}"
+FILES_${PN} += "${AVS_DIR}/ /sounds /database ${bindir} ${libdir}  ${includedir}"
 FILES_${PN} += "${sysconfdir}/* "
 ASNEEDED=""
 

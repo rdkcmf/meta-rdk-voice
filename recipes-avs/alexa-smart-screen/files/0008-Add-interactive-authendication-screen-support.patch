@@ -1,0 +1,452 @@
+From d39faf885a2784023b0738887359a583e3cc727e Mon Sep 17 00:00:00 2001
+From: Aswin M <Aswin_M@comcast.com>
+Date: Wed, 15 Jun 2022 13:03:42 +0000
+Subject: [PATCH] HX44X-149 : Bring in Voice Support
+
+Reason for change: Add support for interactive authendication screen.
+Test Procedure: Enable necessary configurations and build with avs-sdk-oobe-screens.
+Risks: Low
+License: Inherited
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ css/main.css      |   7 +-
+ js/ss-sdk-oobe.js | 361 +++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 364 insertions(+), 4 deletions(-)
+
+diff --git a/css/main.css b/css/main.css
+index b6fc36d..4aa6aea 100644
+--- a/css/main.css
++++ b/css/main.css
+@@ -94,4 +94,9 @@ body {
+ .btn-primary:active, .btn-primary:hover {
+     background-color: #008cff;
+     border-color: #008cff;
+-}
+\ No newline at end of file
++}
++
++.btn-secondary:active, .btn-secondary:hover, .btn-secondary:focus {
++    background-color: #008cff;
++    border-color: #008cff;
++}
+diff --git a/js/ss-sdk-oobe.js b/js/ss-sdk-oobe.js
+index 8c0579b..26efe90 100755
+--- a/js/ss-sdk-oobe.js
++++ b/js/ss-sdk-oobe.js
+@@ -1,3 +1,8 @@
++var TabIndexCounter = 0;
++var BtnElements =[];
++var LstPrsdKey = '';
++var prvspage = '';
++
+ var setupOptions = {
+     cblData: null,
+     currentScreen: null,
+@@ -80,7 +85,66 @@ var navigation = {
+         document.getElementById("screen_default_error").style.display = "none";
+         document.getElementById("bt_back").style.display = "block";
+         document.getElementById("bt_done").style.display = "none";
+-        backAction = () => {};
++		
++		ClrElementFocus('start');
++		BtnElements =[document.getElementById("bt_back"),document.getElementById("bt_sign_in")];
++	
++		var SetVisibility = new XMLHttpRequest();
++	
++		SetVisibility.onreadystatechange = function() {
++		if (this.readyState == 4 && this.status == 200) {
++		
++			var ZorderChange = new XMLHttpRequest();
++
++			ZorderChange.onreadystatechange = function() {
++			if (this.readyState == 4 && this.status == 200) {
++		
++				var FocusReq = new XMLHttpRequest();
++				FocusReq.open("POST", "http://127.0.0.1:9998/jsonrpc");
++				FocusReq.setRequestHeader("Accept", "application/json");
++				FocusReq.setRequestHeader("Content-Type", "application/json");
++		
++				let Focuscmd = `{
++				"jsonrpc": "2.0",
++				"id": 3,
++				"method": "org.rdk.RDKShell.1.setFocus",
++				"params": { "client": "HtmlApp"}
++				}`;
++			
++				FocusReq.send(Focuscmd);
++			}
++			};
++			
++			ZorderChange.open("POST", "http://127.0.0.1:9998/jsonrpc");
++			ZorderChange.setRequestHeader("Accept", "application/json");
++			ZorderChange.setRequestHeader("Content-Type", "application/json");
++		
++			let MoveToBackcmd = `{
++			"jsonrpc": "2.0",
++			"id": 3,
++			"method": "org.rdk.RDKShell.1.moveToBack",
++			"params": { "client": "ResidentApp"}
++			}`;
++		
++			ZorderChange.send(MoveToBackcmd);			
++			
++		}
++		};
++		
++	
++		SetVisibility.open("POST", "http://127.0.0.1:9998/jsonrpc");
++		SetVisibility.setRequestHeader("Accept", "application/json");
++		SetVisibility.setRequestHeader("Content-Type", "application/json");
++	
++		let SetVisibilityCmd = `{
++		"jsonrpc": "2.0",
++		"id": 3,
++		"method": "org.rdk.RDKShell.1.setVisibility",
++		"params": { "client": "HtmlApp" , "visible": true }
++		}`;
++
++		SetVisibility.send(SetVisibilityCmd);
++        backAction = navigation.ToDone;
+     },
+     ToCBL: () => {
+         setupOptions.currentScreen = "cbl";
+@@ -92,7 +156,69 @@ var navigation = {
+         document.getElementById("screen_default_error").style.display = "none";
+         document.getElementById("bt_back").style.display = "block";
+         document.getElementById("bt_done").style.display = "none";
++		
++		ClrElementFocus('cbl');
++
++		BtnElements =[document.getElementById("bt_back")];
++
++		var SetVisibility = new XMLHttpRequest();
++	
++		SetVisibility.onreadystatechange = function() {
++		if (this.readyState == 4 && this.status == 200) {
++		
++			var ZorderChange = new XMLHttpRequest();
++
++			ZorderChange.onreadystatechange = function() {
++			if (this.readyState == 4 && this.status == 200) {
++		
++				var FocusReq = new XMLHttpRequest();
++				FocusReq.open("POST", "http://127.0.0.1:9998/jsonrpc");
++				FocusReq.setRequestHeader("Accept", "application/json");
++				FocusReq.setRequestHeader("Content-Type", "application/json");
++		
++				let Focuscmd = `{
++				"jsonrpc": "2.0",
++				"id": 3,
++				"method": "org.rdk.RDKShell.1.setFocus",
++				"params": { "client": "HtmlApp"}
++				}`;
++			
++				FocusReq.send(Focuscmd);
++			}
++			};
++			
++			ZorderChange.open("POST", "http://127.0.0.1:9998/jsonrpc");
++			ZorderChange.setRequestHeader("Accept", "application/json");
++			ZorderChange.setRequestHeader("Content-Type", "application/json");
++		
++			let MoveToBackcmd = `{
++			"jsonrpc": "2.0",
++			"id": 3,
++			"method": "org.rdk.RDKShell.1.moveToBack",
++			"params": { "client": "ResidentApp"}
++			}`;
++		
++			ZorderChange.send(MoveToBackcmd);			
++			
++		}
++		};
++		
++	
++		SetVisibility.open("POST", "http://127.0.0.1:9998/jsonrpc");
++		SetVisibility.setRequestHeader("Accept", "application/json");
++		SetVisibility.setRequestHeader("Content-Type", "application/json");
++	
++		let SetVisibilityCmd = `{
++		"jsonrpc": "2.0",
++		"id": 3,
++		"method": "org.rdk.RDKShell.1.setVisibility",
++		"params": { "client": "HtmlApp" , "visible": true }
++		}`;
++
++		SetVisibility.send(SetVisibilityCmd);
++		
+         backAction = navigation.ToStart;
++
+     },
+     ToSuccess: () => {
+         setupOptions.currentScreen = "success";
+@@ -104,6 +230,66 @@ var navigation = {
+         document.getElementById("screen_default_error").style.display = "none";
+         document.getElementById("bt_back").style.display = "none";
+         document.getElementById("bt_done").style.display = "block";
++		
++		ClrElementFocus('success');
++		BtnElements =[document.getElementById("bt_done")];
++		
++		var SetVisibility = new XMLHttpRequest();
++	
++		SetVisibility.onreadystatechange = function() {
++		if (this.readyState == 4 && this.status == 200) {
++		
++			var ZorderChange = new XMLHttpRequest();
++
++			ZorderChange.onreadystatechange = function() {
++			if (this.readyState == 4 && this.status == 200) {
++		
++				var FocusReq = new XMLHttpRequest();
++				FocusReq.open("POST", "http://127.0.0.1:9998/jsonrpc");
++				FocusReq.setRequestHeader("Accept", "application/json");
++				FocusReq.setRequestHeader("Content-Type", "application/json");
++		
++				let Focuscmd = `{
++				"jsonrpc": "2.0",
++				"id": 3,
++				"method": "org.rdk.RDKShell.1.setFocus",
++				"params": { "client": "HtmlApp"}
++				}`;
++			
++				FocusReq.send(Focuscmd);
++			}
++			};
++			
++			ZorderChange.open("POST", "http://127.0.0.1:9998/jsonrpc");
++			ZorderChange.setRequestHeader("Accept", "application/json");
++			ZorderChange.setRequestHeader("Content-Type", "application/json");
++		
++			let MoveToBackcmd = `{
++			"jsonrpc": "2.0",
++			"id": 3,
++			"method": "org.rdk.RDKShell.1.moveToBack",
++			"params": { "client": "ResidentApp"}
++			}`;
++		
++			ZorderChange.send(MoveToBackcmd);			
++			
++		}
++		};
++		
++	
++		SetVisibility.open("POST", "http://127.0.0.1:9998/jsonrpc");
++		SetVisibility.setRequestHeader("Accept", "application/json");
++		SetVisibility.setRequestHeader("Content-Type", "application/json");
++	
++		let SetVisibilityCmd = `{
++		"jsonrpc": "2.0",
++		"id": 3,
++		"method": "org.rdk.RDKShell.1.setVisibility",
++		"params": { "client": "HtmlApp" , "visible": true }
++		}`;
++
++		SetVisibility.send(SetVisibilityCmd);
++		
+     },
+     ToError: (errorType) => {
+         setupOptions.currentScreen = "error";
+@@ -113,18 +299,134 @@ var navigation = {
+         document.getElementById("screen_default_cbl").style.display = "none";
+         document.getElementById("screen_default_success").style.display = "none";
+         document.getElementById("screen_default_error").style.display = "block";
+-        document.getElementById("bt_back").style.display = "block";
+-        document.getElementById("bt_done").style.display = "none";
++        document.getElementById("bt_back").style.display = "none";
++        document.getElementById("bt_done").style.display = "block";
++		
++		ClrElementFocus('error');
++		BtnElements =[document.getElementById("bt_done")];
+ 
+         // display error message
+         document.getElementById("screen_default_error_text").innerHTML = textStrings.genericError;
+ 
++		var SetVisibility = new XMLHttpRequest();
++	
++		SetVisibility.onreadystatechange = function() {
++		if (this.readyState == 4 && this.status == 200) {
++		
++			var ZorderChange = new XMLHttpRequest();
++
++			ZorderChange.onreadystatechange = function() {
++			if (this.readyState == 4 && this.status == 200) {
++		
++				var FocusReq = new XMLHttpRequest();
++				FocusReq.open("POST", "http://127.0.0.1:9998/jsonrpc");
++				FocusReq.setRequestHeader("Accept", "application/json");
++				FocusReq.setRequestHeader("Content-Type", "application/json");
++		
++				let Focuscmd = `{
++				"jsonrpc": "2.0",
++				"id": 3,
++				"method": "org.rdk.RDKShell.1.setFocus",
++				"params": { "client": "HtmlApp"}
++				}`;
++			
++				FocusReq.send(Focuscmd);
++			}
++			};
++			
++			ZorderChange.open("POST", "http://127.0.0.1:9998/jsonrpc");
++			ZorderChange.setRequestHeader("Accept", "application/json");
++			ZorderChange.setRequestHeader("Content-Type", "application/json");
++		
++			let MoveToBackcmd = `{
++			"jsonrpc": "2.0",
++			"id": 3,
++			"method": "org.rdk.RDKShell.1.moveToBack",
++			"params": { "client": "ResidentApp"}
++			}`;
++		
++			ZorderChange.send(MoveToBackcmd);			
++			
++		}
++		};
++		
++	
++		SetVisibility.open("POST", "http://127.0.0.1:9998/jsonrpc");
++		SetVisibility.setRequestHeader("Accept", "application/json");
++		SetVisibility.setRequestHeader("Content-Type", "application/json");
++	
++		let SetVisibilityCmd = `{
++		"jsonrpc": "2.0",
++		"id": 3,
++		"method": "org.rdk.RDKShell.1.setVisibility",
++		"params": { "client": "HtmlApp" , "visible": true }
++		}`;
++
++		SetVisibility.send(SetVisibilityCmd);
++
+         backAction = navigation.ToStart;
++
+     },
+     ToDone: () => {
+         setupOptions.currentScreen = "done";
+         document.getElementById("root").style.display = "block"; // SS SDK container
+         document.getElementById("ss_sdk_oobe").style.display = "none"; // OOBE container
++
++	var SetVisibility = new XMLHttpRequest();
++	
++	SetVisibility.onreadystatechange = function() {
++    if (this.readyState == 4 && this.status == 200) {
++		
++		var ZorderChange = new XMLHttpRequest();
++
++		ZorderChange.onreadystatechange = function() {
++		if (this.readyState == 4 && this.status == 200) {
++		
++			var FocusReq = new XMLHttpRequest();
++			FocusReq.open("POST", "http://127.0.0.1:9998/jsonrpc");
++			FocusReq.setRequestHeader("Accept", "application/json");
++			FocusReq.setRequestHeader("Content-Type", "application/json");
++		
++			let Focuscmd = `{
++			"jsonrpc": "2.0",
++			"id": 3,
++			"method": "org.rdk.RDKShell.1.setFocus",
++			"params": { "client": "ResidentApp"}
++			}`;
++			
++			FocusReq.send(Focuscmd);
++		}
++		};
++		
++		ZorderChange.open("POST", "http://127.0.0.1:9998/jsonrpc");
++		ZorderChange.setRequestHeader("Accept", "application/json");
++		ZorderChange.setRequestHeader("Content-Type", "application/json");
++		
++		let MoveToFrontcmd = `{
++		"jsonrpc": "2.0",
++		"id": 3,
++		"method": "org.rdk.RDKShell.1.moveToFront",
++		"params": { "client": "ResidentApp"}
++		}`;
++		
++		ZorderChange.send(MoveToFrontcmd);
++				
++    }
++	};
++	
++	SetVisibility.open("POST", "http://127.0.0.1:9998/jsonrpc");
++	SetVisibility.setRequestHeader("Accept", "application/json");
++	SetVisibility.setRequestHeader("Content-Type", "application/json");
++
++	let SetVisibilityCmd = `{
++	"jsonrpc": "2.0",
++	"id": 3,
++	"method": "org.rdk.RDKShell.1.setVisibility",
++	"params": { "client": "HtmlApp" , "visible": false }
++	}`;
++
++	SetVisibility.send(SetVisibilityCmd);
++		
+     }
+ }
+ 
+@@ -154,6 +456,59 @@ var cblCodeAcquired = (cblData) => {
+     }
+ }
+ 
++//clear focus
++var ClrElementFocus = (currentpage) => {
++
++if(currentpage !== prvspage)
++{
++	TabIndexCounter = 0;
++	if(document.activeElement)
++	{
++		document.activeElement.blur();
++		LstPrsdKey = '';
++	}
++
++	prvspage = currentpage;
++}
++}
++
++//key events
++document.addEventListener('keydown', (event) => {
++
++  var name = event.key;
++  if (name === 'ArrowDown') {
++	  if(LstPrsdKey === 'ArrowUp')
++	  {
++		  TabIndexCounter = TabIndexCounter+1;
++	  }
++	  if(TabIndexCounter < BtnElements.length){
++		  BtnElements[TabIndexCounter].focus();
++		  TabIndexCounter = TabIndexCounter+1;
++		  LstPrsdKey = 'ArrowDown';
++	  }
++  }
++  else if(name === 'ArrowUp') {
++  
++	  if(LstPrsdKey === 'ArrowDown')
++	  {
++		  TabIndexCounter = TabIndexCounter-1;
++	  }
++	  
++		if(TabIndexCounter != 0){	
++			TabIndexCounter = TabIndexCounter-1;
++			BtnElements[TabIndexCounter].focus();
++			LstPrsdKey = 'ArrowUp';
++		}
++		else if(document.activeElement)
++		{
++			document.activeElement.blur();
++			LstPrsdKey = '';
++		}
++	  
++	  //}
++  }
++}, false);
++
+ // bind events
+ document.getElementById("bt_sign_in").addEventListener("click", () => {
+     navigation.ToCBL();
+-- 
+2.17.1
+
