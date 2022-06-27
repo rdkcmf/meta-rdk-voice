@@ -7,8 +7,6 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=b1e01b26bacfc2232046c90a330332b3"
 
 SRC_URI  = "${CMF_GIT_ROOT}/rdk/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=rdk-next;name=skillmapper"
-SRC_URI += " ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0001-overlay-support-for-speaking-state.patch', '', d)}"
-SRC_URI += " ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0002-xr-speech-avs-overlay-config.patch', '', d)}"
 
 SRCREV_skillmapper ="${AUTOREV}"
 #SRCREV_FORMAT = "skillmapper"
@@ -24,11 +22,14 @@ S = "${WORKDIR}/git"
 SMARTSCREEN_SUPPORT ?= "ON"
 FRONTPANEL_SUPPORT ?= "OFF"
 RDKSERVICE_SUPPORT ?= "ON"
+XR_SPEECH_AVS_SUPPORT ?= "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'ON', '', d)}"
+
 EXTRA_OECMAKE += " \
     -DSKILLMAPPER_SMARTSCREEN_SUPPORT=${SMARTSCREEN_SUPPORT} \
     -DSKILLMAPPER_FRONTPANEL_SUPPORT=${FRONTPANEL_SUPPORT} \
     -DSKILLMAPPER_RDKSERVICE_SUPPORT=${RDKSERVICE_SUPPORT} \
     -DBUILD_REFERENCE=${SRCREV} \
+    -DSKILLMAPPER_XR_SPEECH_AVS_SUPPORT=${XR_SPEECH_AVS_SUPPORT} \
 "
 AVS_DIR ?= "/home/root/Alexa_SDK"
 do_install_append () {
