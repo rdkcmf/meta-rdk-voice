@@ -1,6 +1,6 @@
-From 31e7e584b1f9135ee9e2d2e00bd614c26bc926f8 Mon Sep 17 00:00:00 2001
-From: Aswin M <Aswin_M@comcast.com>
-Date: Thu, 16 Jun 2022 07:18:42 +0000
+From 3e93f17242ddd0b3432ca9657a3b45b7f0804aa4 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Fri, 1 Jul 2022 05:55:22 +0000
 Subject: [PATCH] HX44X-149 : Bring in Voice Support
 
 Reason for change: Integrate xr-speech-avs with control manager
@@ -12,65 +12,111 @@ Source: RDKM
 
 Signed-off-by: Aswin M <Aswin_M@comcast.com>
 ---
- src/Makefile.am                               |  2 +-
- src/ble/ctrlm_hal_ble.cpp                     | 27 ++++++++++
- .../endpoints/ctrlm_voice_endpoint_sdt.cpp    | 53 ++++++++++---------
- .../endpoints/ctrlm_voice_endpoint_sdt.h      |  7 +--
- 4 files changed, 61 insertions(+), 28 deletions(-)
+ configure.ac                                  |   9 +
+ src/Makefile.am                               |   9 +
+ src/ble/ctrlm_hal_ble.cpp                     |  35 ++
+ src/voice/ctrlm_voice_obj_generic.cpp         |  63 ++-
+ src/voice/ctrlm_voice_obj_generic.h           |   3 +
+ .../ctrlm_voice_endpoint_sdt_avs.cpp          | 413 ++++++++++++++++++
+ .../endpoints/ctrlm_voice_endpoint_sdt_avs.h  |  64 +++
+ 7 files changed, 595 insertions(+), 1 deletion(-)
+ create mode 100644 src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp
+ create mode 100644 src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.h
 
+diff --git a/configure.ac b/configure.ac
+index 95b9ece..a9c75e8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -57,6 +57,15 @@ AC_ARG_ENABLE([xrsr_sdt],
+ esac],[xrsr_sdt=false])
+ AM_CONDITIONAL([SUPPORT_VOICE_DEST_ALSA], [test x$xrsr_sdt = xtrue])
+ 
++AC_ARG_ENABLE([xrsr_sdt_avs],
++[  --enable-xrsr_sdt_avs    Turn on Support Voice Destination AVS],
++[case "${enableval}" in
++  yes) xrsr_sdt_avs=true ;;
++  no)  xrsr_sdt_avs=false ;;
++  *) AC_MSG_ERROR([bad value ${enableval} for --enable-xrsr_sdt_avs]) ;;
++esac],[xrsr_sdt_avs=false])
++AM_CONDITIONAL([SUPPORT_VOICE_DEST_AVS], [test x$xrsr_sdt_avs = xtrue])
++
+ AC_ARG_ENABLE([ble],
+ [  --enable-ble    Turn on RDKX logger support],
+ [case "${enableval}" in
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 916560e..40c18c3 100644
+index 4e7354c..0a7efaa 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -262,7 +262,7 @@ endif
- 
- if SUPPORT_VOICE_DEST_ALSA
- AM_CPPFLAGS += -DSUPPORT_VOICE_DEST_ALSA
--AM_LDFLAGS  += -lvirtualmic
-+AM_LDFLAGS  += -lxr-speech-avs
+@@ -87,6 +87,10 @@ if SUPPORT_VOICE_DEST_ALSA
+ controlMgr_SOURCES  += voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
  endif
  
++if SUPPORT_VOICE_DEST_AVS
++controlMgr_SOURCES  += voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp
++endif
++
+ if RF4CE_ENABLED
+ AM_CPPFLAGS += -DCTRLM_NETWORK_RF4CE
+ AM_CPPFLAGS += -DCTRLM_NETWORK_HAS_HAL_NVM
+@@ -264,6 +268,11 @@ AM_CPPFLAGS += -DSUPPORT_VOICE_DEST_ALSA
+ AM_LDFLAGS  += -lvirtualmic
+ endif
+ 
++if SUPPORT_VOICE_DEST_AVS
++AM_CPPFLAGS += -DSUPPORT_VOICE_DEST_AVS
++AM_LDFLAGS  += -lxr-speech-avs
++endif
++
  if DUNFELL_BUILD_ENABLED
+ AM_CPPFLAGS += -DDUNFELL_BUILD_SUPPORT
+ endif
 diff --git a/src/ble/ctrlm_hal_ble.cpp b/src/ble/ctrlm_hal_ble.cpp
-index f03f044..c2d85db 100644
+index 3f0cbc3..0061c35 100644
 --- a/src/ble/ctrlm_hal_ble.cpp
 +++ b/src/ble/ctrlm_hal_ble.cpp
-@@ -44,6 +44,7 @@
+@@ -44,6 +44,9 @@
  #include "../ctrlm_utils.h"
  #include "../json_config.h"
  #include "ctrlm_ble_network.h"
-+#include "AVS.h"
++#ifdef SUPPORT_VOICE_DEST_AVS
++    #include "AVS.h"
++#endif /* SUPPORT_VOICE_DEST_AVS */
  
  using namespace std;
  
-@@ -140,6 +141,7 @@ static ctrlm_hal_result_t ctrlm_hal_ble_req_HandleDeepsleep(ctrlm_hal_ble_Handle
+@@ -141,6 +144,9 @@ static ctrlm_hal_result_t ctrlm_hal_ble_req_HandleDeepsleep(ctrlm_hal_ble_Handle
  
  static ctrlm_hal_result_t ctrlm_hal_ble_req_Terminate(void);
  
-+static void                 ctrlm_hal_ble_avs_init(void);
++#ifdef SUPPORT_VOICE_DEST_AVS
++static void ctrlm_hal_ble_avs_init(void);
++#endif /* SUPPORT_VOICE_DEST_AVS */
  
  // -----------------------------------
  // Utility functions
-@@ -544,6 +546,7 @@ static void ctrlm_hal_ble_DBusOnPropertyChangedCB ( GDBusProxy *proxy,
+@@ -546,6 +552,9 @@ static void ctrlm_hal_ble_DBusOnPropertyChangedCB ( GDBusProxy *proxy,
                      }
                  }
                  g_mutex_unlock(&g_ctrlm_hal_ble->mutex_metadata);
++		#ifdef SUPPORT_VOICE_DEST_AVS
 +		ctrlm_hal_ble_avs_init();
++		#endif /* SUPPORT_VOICE_DEST_AVS */
              }
  
              if (NULL != g_ctrlm_hal_ble->main_init.ind_status && CTRLM_HAL_BLE_PROPERTY_UNKNOWN != rcu_status.property_updated) {
-@@ -598,6 +601,10 @@ static void ctrlm_hal_ble_DBusOnSignalReceivedCB (  GDBusProxy *proxy,
+@@ -600,6 +609,11 @@ static void ctrlm_hal_ble_DBusOnSignalReceivedCB (  GDBusProxy *proxy,
                      if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.ind_paired(g_ctrlm_hal_ble->main_init.network_id, &params)) {
                          LOG_ERROR("%s: RCU paired indication failed\n", __FUNCTION__);
                      }
-+					
++		    #ifdef SUPPORT_VOICE_DEST_AVS
 +		    if (true == rcu_status.rcu_data.connected) {
 +			ctrlm_hal_ble_avs_init();
 +		    }
++		    #endif /* SUPPORT_VOICE_DEST_AVS */
                  }
              } else {
                  LOG_ERROR("%s: Failed to setup HAL metadata for device: 0x%llX, not sending indication up to network\n", __FUNCTION__,ieee_address);
-@@ -2194,3 +2201,23 @@ void *ctrlm_hal_ble_KeyMonitorThread(void *data)
+@@ -2210,3 +2224,24 @@ void *ctrlm_hal_ble_KeyMonitorThread(void *data)
  // -------------------------------------------------------------------------------------------------------------
  // END - Key Monitor Thread
  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,6 +124,7 @@ index f03f044..c2d85db 100644
 +////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 +// BEGIN - AVS Init Function
 +// -------------------------------------------------------------------------------------------------------------
++#ifdef SUPPORT_VOICE_DEST_AVS
 +static void ctrlm_hal_ble_avs_init(void)
 +{
 +	static bool AVS_Init_Flag = false;
@@ -88,176 +135,635 @@ index f03f044..c2d85db 100644
 +        	AVS_Initialize();
 +		AVS_Init_Flag = true;
 +	}
-+	
-+	
++		
 +}
++#endif /* SUPPORT_VOICE_DEST_AVS */
 +// -------------------------------------------------------------------------------------------------------------
 +// END - AVS Init Function
 +////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-diff --git a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
-index 751b54b..346223b 100644
---- a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
-+++ b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
-@@ -25,7 +25,7 @@ typedef struct {
-     xrsr_session_config_out_t       configuration;
-     xrsr_callback_session_config_t  callback;
-     bool                            has_stream_params;
--    vmic_sdt_stream_params_t        stream_params;
-+    avs_sdt_stream_params_t        stream_params;
-     rdkx_timestamp_t                timestamp;
- } ctrlm_voice_session_begin_cb_sdt_t;
+diff --git a/src/voice/ctrlm_voice_obj_generic.cpp b/src/voice/ctrlm_voice_obj_generic.cpp
+index 1e72754..0c09b6e 100644
+--- a/src/voice/ctrlm_voice_obj_generic.cpp
++++ b/src/voice/ctrlm_voice_obj_generic.cpp
+@@ -41,6 +41,10 @@
+ #include "ctrlm_voice_endpoint_sdt.h"
+ #endif
  
-@@ -57,14 +57,14 @@ typedef struct {
- 
- // Function Implementations
- ctrlm_voice_endpoint_sdt_t::ctrlm_voice_endpoint_sdt_t(ctrlm_voice_t *voice_obj) : ctrlm_voice_endpoint_t(voice_obj) {
--    this->vmic_obj_sdt     = NULL;
-+    this->avs_obj_sdt     = NULL;
-     this->voice_message_available = false;
++#ifdef SUPPORT_VOICE_DEST_AVS
++#include "ctrlm_voice_endpoint_sdt_avs.h"
++#endif /* SUPPORT_VOICE_DEST_AVS */
++
+ // Application Interface Implementation
+ ctrlm_voice_generic_t::ctrlm_voice_generic_t() : ctrlm_voice_t() {
+     LOG_INFO("%s: Constructor\n", __FUNCTION__);
+@@ -53,6 +57,9 @@ ctrlm_voice_generic_t::ctrlm_voice_generic_t() : ctrlm_voice_t() {
+     #ifdef SUPPORT_VOICE_DEST_ALSA
+     this->obj_sdt        = NULL;
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    this->obj_sdt_avs        = NULL;
++    #endif /* SUPPORT_VOICE_DEST_AVS */
  }
  
- ctrlm_voice_endpoint_sdt_t::~ctrlm_voice_endpoint_sdt_t() {
--    if(this->vmic_obj_sdt) {
--        vmic_sdt_destroy(this->vmic_obj_sdt);
--        this->vmic_obj_sdt = NULL;
+ ctrlm_voice_generic_t::~ctrlm_voice_generic_t() {
+@@ -69,6 +76,9 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
+     #ifdef SUPPORT_VOICE_DEST_ALSA
+     this->obj_sdt        = new ctrlm_voice_endpoint_sdt_t(this);
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    this->obj_sdt_avs        = new ctrlm_voice_endpoint_sdt_avs_t(this);
++    #endif /* SUPPORT_VOICE_DEST_AVS */
+     if(this->obj_ws->open() == false) {
+         LOG_ERROR("%s: Failed to open speech WS\n", __FUNCTION__);
+         xrsr_close();
+@@ -89,12 +99,22 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
+         g_assert(0);
+     }
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    else if(this->obj_sdt_avs->open() == false) {
++        LOG_ERROR("%s: Failed to open speech sdt \n", __FUNCTION__);
++        xrsr_close();
++        g_assert(0);
++    }
++    #endif /* SUPPORT_VOICE_DEST_AVS */
+     this->endpoints.push_back(this->obj_ws);
+     this->endpoints.push_back(this->obj_http);
+     this->endpoints.push_back(this->obj_ws_nextgen);
+     #ifdef SUPPORT_VOICE_DEST_ALSA
+     this->endpoints.push_back(this->obj_sdt);
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    this->endpoints.push_back(this->obj_sdt_avs);
++    #endif /* SUPPORT_VOICE_DEST_AVS */
+ }
+ 
+ void ctrlm_voice_generic_t::voice_sdk_close() {
+@@ -123,6 +143,12 @@ void ctrlm_voice_generic_t::voice_sdk_close() {
+         this->obj_sdt = NULL;
+     }
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    if(this->obj_sdt_avs != NULL) {
++        delete this->obj_sdt_avs;
++        this->obj_sdt_avs = NULL;
++    }
++    #endif /* SUPPORT_VOICE_DEST_AVS */
+ }
+ 
+ void ctrlm_voice_generic_t::voice_sdk_update_routes() {
+@@ -279,7 +305,37 @@ void ctrlm_voice_generic_t::voice_sdk_update_routes() {
+                 i++;
+             }
+         }
+-        #endif  
++        #endif
++        #ifdef SUPPORT_VOICE_DEST_AVS
++          else if(url->rfind("avs", 0) == 0) {
++            xrsr_handlers_t    handlers_xrsr;
++            memset(&handlers_xrsr, 0, sizeof(handlers_xrsr));			
++   	     int translated_index = urls_translated.size();
++	     urls_translated.push_back("sdt" + url->substr(3));
++			
++            if(!this->obj_sdt_avs->get_handlers(&handlers_xrsr)) {
++                LOG_ERROR("%s: failed to get handlers ws\n", __FUNCTION__);
++            } else {
++
++                routes[i].src                     = src;
++                routes[i].dst_qty                 = 1;
++                routes[i].dsts[0].url             = urls_translated[translated_index].c_str();
++                routes[i].dsts[0].handlers        = handlers_xrsr;
++                routes[i].dsts[0].formats         = XRSR_AUDIO_FORMAT_PCM;
++                routes[i].dsts[0].stream_time_min = this->prefs.utterance_duration_min;
++                routes[i].dsts[0].stream_from     = stream_from;
++                routes[i].dsts[0].stream_offset   = stream_offset;
++                routes[i].dsts[0].stream_until    = stream_until;
++                #ifdef ENABLE_DEEP_SLEEP
++                if(src == XRSR_SRC_MICROPHONE) {
++                    routes[i].dsts[0].params[XRSR_POWER_MODE_LOW] = &this->prefs.standby_params;
++                }
++                #endif
++                i++;
++		LOG_INFO("%s: url translation from %s to %s\n", __FUNCTION__, url->c_str(), urls_translated[translated_index].c_str());
++            }
++        }
++        #endif /* SUPPORT_VOICE_DEST_AVS */				
+         else {
+             LOG_ERROR("%s: unsupported url <%s>", __FUNCTION__, url->c_str());
+         }
+@@ -329,5 +385,10 @@ void ctrlm_voice_generic_t::mask_pii_updated(bool enable) {
+         this->obj_sdt->voice_stb_data_mask_pii_set(enable);
+     }
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    if(this->obj_sdt_avs != NULL) {
++        this->obj_sdt_avs->voice_stb_data_mask_pii_set(enable);
++    }
++    #endif /* SUPPORT_VOICE_DEST_AVS */	
+ }
+ 
+diff --git a/src/voice/ctrlm_voice_obj_generic.h b/src/voice/ctrlm_voice_obj_generic.h
+index da8674a..59b61e4 100644
+--- a/src/voice/ctrlm_voice_obj_generic.h
++++ b/src/voice/ctrlm_voice_obj_generic.h
+@@ -46,5 +46,8 @@ class ctrlm_voice_generic_t : public ctrlm_voice_t {
+     #ifdef SUPPORT_VOICE_DEST_ALSA
+     ctrlm_voice_endpoint_t * obj_sdt;
+     #endif
++    #ifdef SUPPORT_VOICE_DEST_AVS
++    ctrlm_voice_endpoint_t * obj_sdt_avs;
++    #endif /* SUPPORT_VOICE_DEST_AVS */
+ };
+ #endif
+diff --git a/src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp b/src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp
+new file mode 100644
+index 0000000..abe9526
+--- /dev/null
++++ b/src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp
+@@ -0,0 +1,413 @@
++/*
++ * If not stated otherwise in this file or this component's license file the
++ * following copyright and licenses apply:
++ *
++ * Copyright 2020 RDK Management
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++*/
++#include "ctrlm_voice_endpoint_sdt_avs.h"
++
++// Structures
++typedef struct {
++    uuid_t                          uuid;
++    xrsr_src_t                      src;
++    xrsr_session_config_out_t       configuration;
++    xrsr_callback_session_config_t  callback;
++    bool                            has_stream_params;
++    avs_sdt_stream_params_t        stream_params;
++    rdkx_timestamp_t                timestamp;
++} ctrlm_voice_session_begin_cb_sdt_avs_t;
++
++// Timestamps and stats are not pointers to avoid corruption
++typedef struct {
++    uuid_t                uuid;
++    xrsr_src_t            src;
++    rdkx_timestamp_t      timestamp;
++} ctrlm_voice_stream_begin_cb_sdt_avs_t;
++
++typedef struct {
++    uuid_t               uuid;
++    xrsr_stream_stats_t  stats;
++    rdkx_timestamp_t     timestamp;
++} ctrlm_voice_stream_end_cb_sdt_avs_t;
++
++typedef struct {
++    uuid_t                uuid;
++    xrsr_session_stats_t  stats;
++    rdkx_timestamp_t      timestamp;
++} ctrlm_voice_session_end_cb_sdt_avs_t;
++
++typedef struct {
++    sem_t                       *semaphore;
++    const char *                 msg;
++    bool *                       result;
++} ctrlm_voice_message_send_sdt_avs_t;
++// End Structures
++
++// Function Implementations
++ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_endpoint_sdt_avs_t(ctrlm_voice_t *voice_obj) : ctrlm_voice_endpoint_t(voice_obj) {
++    this->avs_obj_sdt     = NULL;
++    this->voice_message_available = false;
++}
++
++ctrlm_voice_endpoint_sdt_avs_t::~ctrlm_voice_endpoint_sdt_avs_t() {
 +    if(this->avs_obj_sdt) {
 +        avs_sdt_destroy(this->avs_obj_sdt);
 +        this->avs_obj_sdt = NULL;
-     }
- }
- 
-@@ -75,13 +75,13 @@ bool ctrlm_voice_endpoint_sdt_t::open() {
-         return(false);
-     }
-   
--    vmic_sdt_params_t      params_sdt = {
-+    avs_sdt_params_t      params_sdt = {
-       .test_flag        = this->voice_obj->voice_stb_data_test_get(),
-       .user_data        = (void *)this
-    };
- 
--   if((this->vmic_obj_sdt = vmic_sdt_create(&params_sdt)) == NULL) {
--      LOG_ERROR("%s: Failed to open speech vmic sdt\n", __FUNCTION__);
-+   if((this->avs_obj_sdt = avs_sdt_create(&params_sdt)) == NULL) {
++    }
++}
++
++bool ctrlm_voice_endpoint_sdt_avs_t::open() {
++
++    if(this->voice_obj == NULL) {
++        LOG_ERROR("%s: Voice object NULL\n", __FUNCTION__);
++        return(false);
++    }
++  
++    avs_sdt_params_t      params_avs_sdt = {
++      .test_flag        = this->voice_obj->voice_stb_data_test_get(),
++      .mask_pii         = ctrlm_is_pii_mask_enabled(),
++      .user_data        = (void *)this
++   };
++
++   if((this->avs_obj_sdt = avs_sdt_create(&params_avs_sdt)) == NULL) {
 +      LOG_ERROR("%s: Failed to open speech avs sdt\n", __FUNCTION__);
-       return(false);
-    }
- 
-@@ -94,25 +94,26 @@ bool ctrlm_voice_endpoint_sdt_t::get_handlers(xrsr_handlers_t *handlers) {
-         return(false);
-     }
- 
--   if(this->voice_obj == NULL || this->vmic_obj_sdt == NULL) {
++      return(false);
++   }
++
++   return(true);
++}
++
++bool ctrlm_voice_endpoint_sdt_avs_t::get_handlers(xrsr_handlers_t *handlers) {
++    if(handlers == NULL) {
++        LOG_ERROR("%s: Handler struct NULL\n", __FUNCTION__);
++        return(false);
++    }
++
 +   if(this->voice_obj == NULL || this->avs_obj_sdt == NULL) {
-         LOG_ERROR("%s: Voice obj or Xrsv obj NULL\n", __FUNCTION__);
-         return(false);
-     }
- 
--    vmic_sdt_handlers_t handlers_vmic;
++        LOG_ERROR("%s: Voice obj or Xrsv obj NULL\n", __FUNCTION__);
++        return(false);
++    }
++
 +    avs_sdt_handlers_t handlers_avs;
-     memset(handlers, 0, sizeof(xrsr_handlers_t));
--    memset(&handlers_vmic, 0, sizeof(handlers_vmic));
++    memset(handlers, 0, sizeof(xrsr_handlers_t));
 +    memset(&handlers_avs, 0, sizeof(handlers_avs));
- 
-     // Set up handlers
--    handlers_vmic.session_begin     = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin;
--    handlers_vmic.session_end       = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_end;
--    handlers_vmic.stream_begin      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_begin;
--    handlers_vmic.stream_kwd        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_kwd;
--    handlers_vmic.stream_end        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_end;
--    handlers_vmic.connected         = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_connected;
--    handlers_vmic.disconnected      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_disconnected;
--
--    if(!vmic_sdt_handlers(this->vmic_obj_sdt, &handlers_vmic, handlers)) {
-+    handlers_avs.session_begin     = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin;
-+    handlers_avs.session_end       = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_end;
-+    handlers_avs.stream_begin      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_begin;
-+    handlers_avs.stream_kwd        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_kwd;
-+    handlers_avs.stream_end        = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_stream_end;
-+    handlers_avs.connected         = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_connected;
-+    handlers_avs.disconnected      = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_disconnected;
-+    handlers_avs.msg               = &ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_server_message;
++
++    // Set up handlers
++    handlers_avs.session_begin     = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_session_begin;
++    handlers_avs.session_end       = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_session_end;
++    handlers_avs.stream_begin      = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_stream_begin;
++    handlers_avs.stream_kwd        = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_stream_kwd;
++    handlers_avs.stream_end        = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_stream_end;
++    handlers_avs.connected         = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_connected;
++    handlers_avs.disconnected      = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_disconnected;
++    handlers_avs.msg               = &ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_server_message;
 +
 +    if(!avs_sdt_handlers(this->avs_obj_sdt, &handlers_avs, handlers)) {
-         LOG_ERROR("%s: failed to get handlers sdt\n", __FUNCTION__);
-         return(false);
-     }
-@@ -121,7 +122,7 @@ bool ctrlm_voice_endpoint_sdt_t::get_handlers(xrsr_handlers_t *handlers) {
- }
- 
- bool ctrlm_voice_endpoint_sdt_t::voice_init_set(const char *blob) const {
--    if(this->voice_obj == NULL || this->vmic_obj_sdt == NULL) {
++        LOG_ERROR("%s: failed to get handlers sdt\n", __FUNCTION__);
++        return(false);
++    }
++
++    return(true);
++}
++
++bool ctrlm_voice_endpoint_sdt_avs_t::voice_init_set(const char *blob) const {
 +    if(this->voice_obj == NULL || this->avs_obj_sdt == NULL) {
-         LOG_ERROR("%s: not ready for this request\n", __FUNCTION__);
-         return(false);
-     }
-@@ -154,7 +155,7 @@ void ctrlm_voice_endpoint_sdt_t::voice_message_send(void *data, int size) {
-     if(dqm == NULL || dqm->result == NULL || dqm->msg == NULL) {
-         LOG_ERROR("%s: Null data\n", __FUNCTION__);
-         return;
--    } else if(this->voice_obj == NULL || this->vmic_obj_sdt == NULL) {
++        LOG_ERROR("%s: not ready for this request\n", __FUNCTION__);
++        return(false);
++    }
++
++    return(true);
++
++}
++
++bool ctrlm_voice_endpoint_sdt_avs_t::voice_message(const char *msg) const {
++    bool ret = false;
++    sem_t semaphore;
++
++    sem_init(&semaphore, 0, 0);
++
++    ctrlm_voice_message_send_sdt_avs_t dqm;
++    memset(&dqm, 0, sizeof(dqm));
++    dqm.semaphore = &semaphore;
++    dqm.msg       = msg;
++    dqm.result    = &ret;
++
++    ctrlm_main_queue_handler_push(CTRLM_HANDLER_VOICE, (ctrlm_msg_handler_voice_t)&ctrlm_voice_endpoint_sdt_avs_t::voice_message_send, &dqm, sizeof(dqm), (void *)this);
++    sem_wait(&semaphore);
++    sem_destroy(&semaphore);
++
++    return(ret);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_stb_data_pii_mask_set(bool enable) {
++    if(this->avs_obj_sdt) {
++        avs_sdt_update_mask_pii(this->avs_obj_sdt, enable);
++    }
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_message_send(void *data, int size) {
++    ctrlm_voice_message_send_sdt_avs_t *dqm = (ctrlm_voice_message_send_sdt_avs_t *)data;
++    if(dqm == NULL || dqm->result == NULL || dqm->msg == NULL) {
++        LOG_ERROR("%s: Null data\n", __FUNCTION__);
++        return;
 +    } else if(this->voice_obj == NULL || this->avs_obj_sdt == NULL) {
-         LOG_ERROR("%s: not ready for this request\n", __FUNCTION__);
-         *dqm->result = false;
-     } else {
-@@ -189,7 +190,7 @@ void ctrlm_voice_endpoint_sdt_t::voice_session_begin_callback_sdt(void *data, in
- 
-     // Handle stream parameters
-     if(dqm->has_stream_params) {
--       vmic_sdt_stream_params_t *stream_params = &dqm->stream_params;
++        LOG_ERROR("%s: not ready for this request\n", __FUNCTION__);
++        *dqm->result = false;
++    } else {
++        if(this->voice_message_available == false) {
++            this->voice_message_queue.push_back(dqm->msg);
++            *dqm->result = true;
++        } else {
++            *dqm->result = true;
++        }
++    }
++    if(dqm->semaphore) {
++        sem_post(dqm->semaphore);
++    }
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_session_begin_callback_sdt_avs(void *data, int size) {
++    ctrlm_voice_session_begin_cb_sdt_avs_t *dqm = (ctrlm_voice_session_begin_cb_sdt_avs_t *)data;
++    if(NULL == data) {
++        LOG_ERROR("%s: NULL data\n", __FUNCTION__);
++        return;
++    }
++    ctrlm_voice_session_info_t info;
++    bool keyword_verification = false;
++    xrsr_session_config_in_t config_in;
++    memset(&config_in, 0, sizeof(config_in));
++
++    this->server_ret_code = 0;
++    this->voice_message_available = false; // This is just for sanity
++    this->voice_message_queue.clear();
++
++    this->voice_obj->voice_session_info(&info);
++
++    // Handle stream parameters
++    if(dqm->has_stream_params) {
 +       avs_sdt_stream_params_t *stream_params = &dqm->stream_params;
-        if(info.has_stream_params) {
-           stream_params->keyword_sample_begin               = info.stream_params.pre_keyword_sample_qty; // in samples
-           stream_params->keyword_sample_end                 = (info.stream_params.pre_keyword_sample_qty + info.stream_params.keyword_sample_qty); // in samples
-@@ -324,7 +325,7 @@ void ctrlm_voice_endpoint_sdt_t::voice_session_server_return_code_sdt(long ret_c
-     this->voice_obj->voice_server_return_code_callback(ret_code);
- }
- 
--void ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, vmic_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data) {
-+void ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, avs_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data) {
- 
- ctrlm_voice_endpoint_sdt_t *endpoint = (ctrlm_voice_endpoint_sdt_t *)user_data;
-     ctrlm_voice_session_begin_cb_sdt_t msg;
-@@ -399,3 +400,7 @@ void ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_disconnected(const uuid
-     endpoint->voice_obj->voice_server_disconnected_callback(&data);
- }
- 
-+void ctrlm_voice_endpoint_sdt_t::ctrlm_voice_handler_sdt_server_message(const char *msg, unsigned long length, void *user_data) {
-+    ctrlm_voice_endpoint_sdt_t *endpoint = (ctrlm_voice_endpoint_sdt_t *)user_data;
++       if(info.has_stream_params) {
++          stream_params->keyword_sample_begin               = info.stream_params.pre_keyword_sample_qty; // in samples
++          stream_params->keyword_sample_end                 = (info.stream_params.pre_keyword_sample_qty + info.stream_params.keyword_sample_qty); // in samples
++          stream_params->keyword_doa                        = info.stream_params.doa;
++          stream_params->keyword_sensitivity                = info.stream_params.standard_search_pt;
++          stream_params->keyword_sensitivity_triggered      = info.stream_params.standard_search_pt_triggered;
++          stream_params->keyword_sensitivity_high           = info.stream_params.high_search_pt;
++          stream_params->keyword_sensitivity_high_support   = info.stream_params.high_search_pt_support;
++          stream_params->keyword_sensitivity_high_triggered = info.stream_params.high_search_pt_triggered;
++          stream_params->dynamic_gain                       = info.stream_params.dynamic_gain;
++          for(int i = 0; i < CTRLM_FAR_FIELD_BEAMS_MAX; i++) {
++              if(info.stream_params.beams[i].selected) {
++                  //TODO figure out how to determine linear vs nonlinear
++                  if(info.stream_params.beams[i].confidence_normalized) {
++                      stream_params->linear_confidence       = info.stream_params.beams[i].confidence;
++                      stream_params->nonlinear_confidence    = 0;
++                  } else {
++                      stream_params->nonlinear_confidence = info.stream_params.beams[i].confidence;
++                      stream_params->linear_confidence    = 0;
++                  }
++                  stream_params->signal_noise_ratio   = info.stream_params.beams[i].snr;
++              }
++          }
++          stream_params->push_to_talk         = info.stream_params.push_to_talk;
++          if(stream_params->keyword_sample_begin != stream_params->keyword_sample_end) {
++              keyword_verification = true;
++          }
++       } else {
++          // TODO tie this together with xraudio_stream_to_pipe call in xrsr_xraudio.c
++          if(stream_params->keyword_sample_begin > 1600) {
++             uint32_t delta = stream_params->keyword_sample_begin - 1600;
++             stream_params->keyword_sample_begin -= delta;
++             stream_params->keyword_sample_end   -= delta;
++          }
++
++          stream_params->keyword_sample_begin = stream_params->keyword_sample_begin / 16; // in ms
++          stream_params->keyword_sample_end   = stream_params->keyword_sample_end   / 16; // in ms
++          stream_params->keyword_doa          = 0;
++          stream_params->dynamic_gain         = 0;
++          stream_params->push_to_talk         = false;
++          if(stream_params->keyword_sample_begin != stream_params->keyword_sample_end) {
++              keyword_verification = true;
++          }
++       }
++       LOG_INFO("%s: session begin - ptt <%s> keyword begin <%u> end <%u> doa <%u> gain <%4.1f> db\n", __FUNCTION__, (stream_params->push_to_talk ? "TRUE" : "FALSE"), stream_params->keyword_sample_begin, stream_params->keyword_sample_end, stream_params->keyword_doa, stream_params->dynamic_gain);
++    }
++    // End handle stream parameters
++
++    ctrlm_voice_session_begin_cb_t session_begin;
++    uuid_copy(session_begin.header.uuid, dqm->uuid);
++    session_begin.header.timestamp     = dqm->timestamp;
++    session_begin.src                  = dqm->src;
++    session_begin.configuration        = dqm->configuration;
++    session_begin.endpoint             = this;
++    session_begin.keyword_verification = keyword_verification;
++
++    this->voice_obj->voice_session_begin_callback(&session_begin);
++
++    if(dqm->configuration.cb_session_config != NULL) {
++        (*dqm->configuration.cb_session_config)(dqm->uuid, &config_in);
++    }
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_stream_begin_callback_sdt_avs(void *data, int size) {
++    ctrlm_voice_stream_begin_cb_sdt_avs_t *dqm = (ctrlm_voice_stream_begin_cb_sdt_avs_t *)data;
++    if(NULL == dqm) {
++        LOG_ERROR("%s: NULL data\n", __FUNCTION__);
++        return;
++    }
++    if(false == this->voice_obj->voice_session_id_is_current(dqm->uuid)) {
++        return;
++    }
++    ctrlm_voice_stream_begin_cb_t stream_begin;
++    uuid_copy(stream_begin.header.uuid, dqm->uuid);
++    stream_begin.header.timestamp = dqm->timestamp;
++    stream_begin.src              = dqm->src;
++    this->voice_obj->voice_stream_begin_callback(&stream_begin);
++
++    this->voice_message_queue.clear();
++    this->voice_message_available = true;
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_stream_end_callback_sdt_avs(void *data, int size) {
++    ctrlm_voice_stream_end_cb_sdt_avs_t *dqm = (ctrlm_voice_stream_end_cb_sdt_avs_t *)data;
++    if(NULL == dqm) {
++        LOG_ERROR("%s: NULL data\n", __FUNCTION__);
++        return;
++    }
++    if(false == this->voice_obj->voice_session_id_is_current(dqm->uuid)) {
++        return;
++    }
++
++    ctrlm_voice_stream_end_cb_t stream_end;
++    uuid_copy(stream_end.header.uuid, dqm->uuid);
++    stream_end.header.timestamp = dqm->timestamp;
++    stream_end.stats            = dqm->stats;
++    this->voice_obj->voice_stream_end_callback(&stream_end);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_session_end_callback_sdt_avs(void *data, int size) {
++    ctrlm_voice_session_end_cb_sdt_avs_t *dqm = (ctrlm_voice_session_end_cb_sdt_avs_t *)data;
++    if(NULL == data) {
++        LOG_ERROR("%s: NULL data\n", __FUNCTION__);
++        return;
++    }
++
++    if(false == this->voice_obj->voice_session_id_is_current(dqm->uuid)) {
++        return;
++    }
++    bool success = true;
++    xrsr_session_stats_t *stats = &dqm->stats;
++    
++    if(stats == NULL) {
++        LOG_ERROR("%s: stats are NULL\n", __FUNCTION__);
++        return;
++    }
++
++    ctrlm_voice_session_end_cb_t session_end;
++    uuid_copy(session_end.header.uuid, dqm->uuid);
++    session_end.header.timestamp = dqm->timestamp;
++    session_end.success          = success;
++    session_end.stats            = dqm->stats;
++    this->voice_obj->voice_session_end_callback(&session_end);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_session_recv_msg_sdt_avs(const char *transcription) {
++    this->voice_obj->voice_session_transcription_callback(transcription);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::voice_session_server_return_code_sdt_avs(long ret_code) {
++    this->server_ret_code = ret_code;
++    this->voice_obj->voice_server_return_code_callback(ret_code);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, avs_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data) {
++
++ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_session_begin_cb_sdt_avs_t msg;
++    memset(&msg, 0, sizeof(msg));
++
++    if(xrsr_to_voice_device(src) != CTRLM_VOICE_DEVICE_MICROPHONE) {
++        // This is a controller, make sure session request / controller info is satisfied
++        LOG_DEBUG("%s: Checking if VSR is done\n", __FUNCTION__);
++        sem_wait(endpoint->voice_session_vsr_semaphore_get());
++    }
++    uuid_copy(msg.uuid, uuid);
++    msg.src           = src;
++    msg.configuration = *configuration;
++    if(stream_params != NULL) {
++       msg.has_stream_params = true;
++       msg.stream_params     = *stream_params;
++    }
++    msg.timestamp     = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    ctrlm_main_queue_handler_push(CTRLM_HANDLER_VOICE, (ctrlm_msg_handler_voice_t)&ctrlm_voice_endpoint_sdt_avs_t::voice_session_begin_callback_sdt_avs, &msg, sizeof(msg), (void *)endpoint);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_session_end(const uuid_t uuid, xrsr_session_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_session_end_cb_sdt_avs_t msg;
++    uuid_copy(msg.uuid, uuid);
++    SET_IF_VALID(msg.stats, stats);
++    msg.timestamp = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    ctrlm_main_queue_handler_push(CTRLM_HANDLER_VOICE, (ctrlm_msg_handler_voice_t)&ctrlm_voice_endpoint_sdt_avs_t::voice_session_end_callback_sdt_avs, &msg, sizeof(msg), (void *)endpoint);
++    endpoint->voice_obj->voice_status_set();
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_stream_begin(const uuid_t uuid, xrsr_src_t src, rdkx_timestamp_t *timestamp, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_stream_begin_cb_sdt_avs_t msg;
++    uuid_copy(msg.uuid, uuid);
++    msg.src           = src;
++    msg.timestamp     = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    ctrlm_main_queue_handler_push(CTRLM_HANDLER_VOICE, (ctrlm_msg_handler_voice_t)&ctrlm_voice_endpoint_sdt_avs_t::voice_stream_begin_callback_sdt_avs, &msg, sizeof(msg), (void *)endpoint);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_stream_kwd(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_cb_header_t data;
++    uuid_copy(data.uuid, uuid);
++    data.timestamp = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    endpoint->voice_obj->voice_stream_kwd_callback(&data);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_stream_end(const uuid_t uuid, xrsr_stream_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_stream_end_cb_sdt_avs_t msg;
++    uuid_copy(msg.uuid, uuid);
++    SET_IF_VALID(msg.stats, stats);
++    msg.timestamp     = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    ctrlm_main_queue_handler_push(CTRLM_HANDLER_VOICE, (ctrlm_msg_handler_voice_t)&ctrlm_voice_endpoint_sdt_avs_t::voice_stream_end_callback_sdt_avs, &msg, sizeof(msg), (void *)endpoint);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_connected(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_cb_header_t data;
++    uuid_copy(data.uuid, uuid);
++    data.timestamp = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    endpoint->voice_obj->voice_server_connected_callback(&data);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_disconnected(const uuid_t uuid, bool retry, rdkx_timestamp_t *timestamp, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
++    ctrlm_voice_disconnected_cb_t data;
++    uuid_copy(data.header.uuid, uuid);
++    data.retry            = retry;
++    data.header.timestamp = ctrlm_voice_endpoint_t::valid_timestamp_get(timestamp);
++    endpoint->voice_obj->voice_server_disconnected_callback(&data);
++}
++
++void ctrlm_voice_endpoint_sdt_avs_t::ctrlm_voice_handler_sdt_avs_server_message(const char *msg, unsigned long length, void *user_data) {
++    ctrlm_voice_endpoint_sdt_avs_t *endpoint = (ctrlm_voice_endpoint_sdt_avs_t *)user_data;
 +    endpoint->voice_obj->server_message(msg, length);
 +}
-diff --git a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h
-index 7b2aa23..41fc677 100644
---- a/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h
-+++ b/src/voice/endpoints/ctrlm_voice_endpoint_sdt.h
-@@ -20,7 +20,7 @@
- #define __CTRLM_VOICE_ENDPOINT_SDT_H__
- 
- #include "ctrlm_voice_endpoint.h"
--#include "vmic_sdt.h"
+diff --git a/src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.h b/src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.h
+new file mode 100644
+index 0000000..fc14b73
+--- /dev/null
++++ b/src/voice/endpoints/ctrlm_voice_endpoint_sdt_avs.h
+@@ -0,0 +1,64 @@
++/*
++ * If not stated otherwise in this file or this component's license file the
++ * following copyright and licenses apply:
++ *
++ * Copyright 2020 RDK Management
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++*/
++#ifndef __CTRLM_VOICE_ENDPOINT_SDT_AVS_H__
++#define __CTRLM_VOICE_ENDPOINT_SDT_AVS_H__
++
++#include "ctrlm_voice_endpoint.h"
 +#include "avs_sdt.h"
- 
- class ctrlm_voice_endpoint_sdt_t : public ctrlm_voice_endpoint_t {
- public:
-@@ -42,15 +42,16 @@ protected:
-     void voice_message_send(void *data, int size);
- 
- protected:
--    static void ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, vmic_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data);
-+    static void ctrlm_voice_handler_sdt_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, avs_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data);
-     static void ctrlm_voice_handler_sdt_session_end(const uuid_t uuid, xrsr_session_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data);
-     static void ctrlm_voice_handler_sdt_stream_begin(const uuid_t uuid, xrsr_src_t src, rdkx_timestamp_t *timestamp, void *user_data);
-     static void ctrlm_voice_handler_sdt_stream_kwd(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data);
-     static void ctrlm_voice_handler_sdt_stream_end(const uuid_t uuid, xrsr_stream_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data);
-     static void ctrlm_voice_handler_sdt_connected(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data);
-     static void ctrlm_voice_handler_sdt_disconnected(const uuid_t uuid, bool retry, rdkx_timestamp_t *timestamp, void *user_data);
-+    static void ctrlm_voice_handler_sdt_server_message(const char *msg, unsigned long length, void *user_data);
- protected:
--    void       *vmic_obj_sdt;
++
++class ctrlm_voice_endpoint_sdt_avs_t : public ctrlm_voice_endpoint_t {
++public:
++    ctrlm_voice_endpoint_sdt_avs_t(ctrlm_voice_t *voice_obj);
++    virtual ~ctrlm_voice_endpoint_sdt_avs_t();
++    bool open();
++    bool get_handlers(xrsr_handlers_t *handlers);
++
++    bool voice_init_set(const char *blob) const;
++    bool voice_message(const char *msg) const;
++    void voice_stb_data_pii_mask_set(bool enable);
++
++protected:
++    void voice_session_begin_callback_sdt_avs(void *data, int size);
++    void voice_stream_begin_callback_sdt_avs(void *data, int size);
++    void voice_stream_end_callback_sdt_avs(void *data, int size);
++    void voice_session_end_callback_sdt_avs(void *data, int size);
++    void voice_session_recv_msg_sdt_avs(const char *transcription);
++    void voice_session_server_return_code_sdt_avs(long ret_code);
++    void voice_message_send(void *data, int size);
++
++protected:
++    static void ctrlm_voice_handler_sdt_avs_session_begin(const uuid_t uuid, xrsr_src_t src, uint32_t dst_index, xrsr_session_config_out_t *configuration, avs_sdt_stream_params_t *stream_params, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_session_end(const uuid_t uuid, xrsr_session_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_stream_begin(const uuid_t uuid, xrsr_src_t src, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_stream_kwd(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_stream_end(const uuid_t uuid, xrsr_stream_stats_t *stats, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_connected(const uuid_t uuid, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_disconnected(const uuid_t uuid, bool retry, rdkx_timestamp_t *timestamp, void *user_data);
++    static void ctrlm_voice_handler_sdt_avs_server_message(const char *msg, unsigned long length, void *user_data);
++protected:
 +    void       *avs_obj_sdt;
- private:
-     long        server_ret_code;
-     // Voice Message Synchronization.. All accesses of these variables MUST be on main thread
++private:
++    long        server_ret_code;
++    // Voice Message Synchronization.. All accesses of these variables MUST be on main thread
++    bool                     voice_message_available;
++    std::vector<std::string> voice_message_queue;
++};
++
++#endif
++
 -- 
 2.17.1
 

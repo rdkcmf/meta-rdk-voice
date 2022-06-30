@@ -7,7 +7,7 @@ SRC_URI += " \
         ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0003-Add-xr-speech-avs-support.patch;apply=no', '', d)} \
     "
 
-EXTRA_OECONF_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' --enable-xrsr_sdt', ' ', d)}"
+EXTRA_OECONF_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' --enable-xrsr_sdt_avs', ' ', d)}"
 DEPENDS_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' xr-speech-avs', ' ', d)}"
 
 EXTRA_OECONF_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' --enable-ble', ' ', d)}"
@@ -36,7 +36,7 @@ do_configure_append() {
     if [ "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'true', 'false', d)}" = "true" ]; then
         echo '{
         "voice" : {
-        "url_src_ptt"                :  "sdt://example.com"
+        "url_src_ptt"                :  "avs://example.com"
         }
         }' > ${CTRLM_CONFIG_OEM_ADD}
     fi
