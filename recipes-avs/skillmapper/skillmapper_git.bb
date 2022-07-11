@@ -6,7 +6,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/:"
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=b1e01b26bacfc2232046c90a330332b3"
 
-SRC_URI  = "${CMF_GIT_ROOT}/rdk/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=rdk-next;name=skillmapper"
+SRC_URI  = "${CMF_GIT_ROOT}/rdk/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=${CMF_GIT_BRANCH};name=skillmapper"
 
 SRCREV_skillmapper ="${AUTOREV}"
 #SRCREV_FORMAT = "skillmapper"

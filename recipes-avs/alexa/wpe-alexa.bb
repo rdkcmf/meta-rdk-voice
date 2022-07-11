@@ -21,7 +21,7 @@ SRCREV ="${AUTOREV}"
 
 SRCREV_FORMAT ="${AUTOREV}"
 
-SRC_URI  += "${CMF_GIT_ROOT}/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=rdk-next;name=skillmapper;destsuffix=git/VoiceToApps"
+SRC_URI  += "${CMF_GIT_ROOT}/rdk/components/generic/avs/alexa_skill_mapper;protocol=${CMF_GIT_PROTOCOL};branch=${CMF_GIT_BRANCH};name=skillmapper;destsuffix=git/VoiceToApps"
 SRC_URI  += "file://0001-gst-adjust-rank.patch"
 SRC_URI  += "file://AlexaClientSDKConfig.json"
 SRC_URI  += "file://alexa.service"
