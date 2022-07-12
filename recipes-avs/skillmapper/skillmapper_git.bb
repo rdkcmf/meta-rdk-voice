@@ -13,7 +13,7 @@ SRCREV_skillmapper ="${AUTOREV}"
 inherit cmake
 OECMAKE_GENERATOR = "Unix Makefiles"
 
-DEPENDS = "wpeframework rapidjson"
+DEPENDS = "wpeframework rapidjson wpeframework-interfaces wpeframework-clientlibraries rdkshell"
 DEPENDS += "virtual/alexa-device-sdk"
 DEPENDS += "aws-cpp-sdk"
 
