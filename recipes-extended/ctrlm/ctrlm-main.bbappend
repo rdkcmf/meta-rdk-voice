@@ -2,7 +2,6 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
 SRC_URI += " \
         ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0001-remove-jenkins-version-check.patch;apply=no', '', d)} \
-        ${@bb.utils.contains('DISTRO_FEATURES', 't4hworkaround', 'file://0001-COMCAST-794-RDK-Voice-stack-T4H-support.patch', '', d)} \
         ${@bb.utils.contains('DISTRO_FEATURES', 't4hworkaround', 'file://0002-COMCAST-794-RDK-Voice-stack-T4H-session-support.patch', '', d)} \
         ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0003-Add-xr-speech-avs-support.patch;apply=no', '', d)} \
     "

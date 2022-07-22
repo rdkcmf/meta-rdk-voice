@@ -1,71 +1,78 @@
-From e1ae78629a5feccd3d414f175ef7084ccb30fc05 Mon Sep 17 00:00:00 2001
-From: Arun P Madhavan <arun_madhavan@comcast.com>
-Date: Wed, 19 Jan 2022 21:03:55 +0000
-Subject: [PATCH 2/2] COMCAST-794: RDK Voice stack - T4H session support
+From 8965b8f8f4b4876ff8021492d10b2ba4aa36c1f7 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Wed, 20 Jul 2022 11:01:25 +0000
+Subject: [PATCH] COMCAST-794: RDK Voice stack - T4H session support
 
 Reason for change: Temporary - Work-around for session control.
 Remove once T4H RCU Firmware adopts RDK RCU Spec.
-Test Procedure: Enable respective feature and test key trigger.
+Test Procedure: Enable respective feature and test audio session trigger.
 Risks: Low
 License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 
-Signed-off-by: Arun Madhavan <arun_madhavan@comcast.com>
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
 ---
- src/ble/ctrlm_hal_ble.cpp | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/ble/ctrlm_hal_ble.cpp | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)
 
 diff --git a/src/ble/ctrlm_hal_ble.cpp b/src/ble/ctrlm_hal_ble.cpp
-index 5c218c5..96e5e47 100644
+index 4707c8d..d27602a 100644
 --- a/src/ble/ctrlm_hal_ble.cpp
 +++ b/src/ble/ctrlm_hal_ble.cpp
-@@ -1884,6 +1884,7 @@ static int ctrlm_hal_ble_OpenKeyInputDevice(unsigned long long ieee_address)
- // -------------------------------------------------------------------------------------------------------------
- static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long long macAddr)
- {
-+    static bool voice_streaming = false;
-     // These are 'seperator' events.  Ignore for now.
+@@ -564,6 +564,33 @@ static void ctrlm_hal_ble_DBusOnPropertyChangedCB ( GDBusProxy *proxy,
+                 }
+             } else {
+                 LOG_WARN("%s: NOT indicating status change to the network.\n", __FUNCTION__);
++            }
++			
++			if((true == rcu_status.rcu_data.audio_streaming) && (rcu_status.property_updated == CTRLM_HAL_BLE_PROPERTY_AUDIO_STREAMING)){
++				//LOG_INFO("%s: AUDIO STREAMING STARTED.\n", __FUNCTION__);
++                    if (NULL == g_ctrlm_hal_ble->main_init.req_voice_session_begin) {
++                        LOG_WARN("%s: req_voice_session_begin is NULL!!\n", __FUNCTION__);
++                    } else {
++                        ctrlm_hal_ble_ReqVoiceSession_params_t req_params;
++                        req_params.ieee_address = rcu_status.rcu_data.ieee_address;
++                        // Send voice session begin request up to the BLE network
++                        if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.req_voice_session_begin(g_ctrlm_hal_ble->main_init.network_id, &req_params)) {
++                            LOG_ERROR("%s: voice session begin request FAILED\n", __FUNCTION__);
++                        }
++                    }
++			}
++            if((true != rcu_status.rcu_data.audio_streaming) && (rcu_status.property_updated == CTRLM_HAL_BLE_PROPERTY_AUDIO_STREAMING)){
++                //LOG_INFO("%s: AUDIO STREAMING STOPED.\n", __FUNCTION__);
++                    if (NULL == g_ctrlm_hal_ble->main_init.req_voice_session_end) {
++                        LOG_WARN("%s: req_voice_session_end is NULL!!\n", __FUNCTION__);
++                    } else {
++                        ctrlm_hal_ble_ReqVoiceSession_params_t req_params;
++                        req_params.ieee_address = rcu_status.rcu_data.ieee_address;
++                        // Send voice session end request up to the BLE network
++                        if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.req_voice_session_end(g_ctrlm_hal_ble->main_init.network_id, &req_params)) {
++                            LOG_ERROR("%s: voice session end request FAILED\n", __FUNCTION__);
++                        }
++                    }
+             }
+         }
+         g_variant_iter_free (iter);
+@@ -2013,7 +2040,8 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
      if (event->code == 0) {
          return 0;
-@@ -1896,7 +1897,9 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
-                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
-                     LOG_INFO("%s: CODE_VOICE_KEY button PRESSED event for device: 0x%llX\n", __FUNCTION__, macAddr);
-                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
+     }
+-    // if macAddr == 0, that means this keypress is coming from the IR input device, so don't try to trigger a voice session
++#if 0
++	// if macAddr == 0, that means this keypress is coming from the IR input device, so don't try to trigger a voice session
+     if (macAddr != 0) {
+         switch (event->code) {
+             case CODE_VOICE_KEY:
+@@ -2056,7 +2084,7 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
+             default: break;
+         }
+     }
 -
-+                    if (voice_streaming) {
-+                        voice_streaming = false;
-+                    } else {
-                     if (NULL == g_ctrlm_hal_ble->main_init.req_voice_session_begin) {
-                         LOG_WARN("%s: req_voice_session_begin is NULL!!\n", __FUNCTION__);
-                     } else {
-@@ -1905,14 +1908,18 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
-                         // Send voice session begin request up to the BLE network
-                         if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.req_voice_session_begin(g_ctrlm_hal_ble->main_init.network_id, &req_params)) {
-                             LOG_ERROR("%s: voice session begin request FAILED\n", __FUNCTION__);
-+                        } else {
-+                            voice_streaming = true;
-                         }
-                     }
-+                    }
-                 }
-                 else if (0 == event->value) {
-                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
-                     LOG_INFO("%s: CODE_VOICE_KEY button RELEASED event for device: 0x%llX\n", __FUNCTION__, macAddr);
-                     LOG_INFO("%s: ------------------------------------------------------------------------\n", __FUNCTION__);
- 
-+                    if (!voice_streaming) {
-                     if (NULL == g_ctrlm_hal_ble->main_init.req_voice_session_end) {
-                         LOG_WARN("%s: req_voice_session_end is NULL!!\n", __FUNCTION__);
-                     } else {
-@@ -1923,6 +1930,7 @@ static int ctrlm_hal_ble_HandleKeypress(struct input_event *event, unsigned long
-                             LOG_ERROR("%s: voice session end request FAILED\n", __FUNCTION__);
-                         }
-                     }
-+                    }
-                 }
-                 else if (2 == event->value) {
-                     // This is the key repeat event sent while holding down the button
++#endif
+     if (event->value >= 0 && event->value < 3) {
+         ctrlm_hal_ble_IndKeypress_params_t req_params;
+         req_params.ieee_address = macAddr;
 -- 
 2.17.1
 
