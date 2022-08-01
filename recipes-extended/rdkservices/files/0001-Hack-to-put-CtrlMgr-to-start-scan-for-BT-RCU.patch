@@ -1,0 +1,168 @@
+From 187c6bf8aa9c1f43c5b8bc7dc0d43917e0262077 Mon Sep 17 00:00:00 2001
+From: Arun P Madhavan <arun_madhavan@comcast.com>
+Date: Fri, 29 Jul 2022 02:05:49 +0000
+Subject: [PATCH] RDKDEV-339 : Need of RemoteControl plugin to initiate pairing in BleRcuDaemon
+
+Reason for change: Hack to initiate the pairing state in BleRcuDaemon without RemoteControl plugin.
+Test Procedure: Build with necessary configuration and check for RCU pairing.
+Risks: Low
+License: Inherited
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Arun P Madhavan <arun_madhavan@comcast.com>
+---
+ Bluetooth/Bluetooth.cpp  | 93 ++++++++++++++++++++++++++++++++++++++++
+ Bluetooth/CMakeLists.txt | 11 +++++
+ 2 files changed, 104 insertions(+)
+
+diff --git a/Bluetooth/Bluetooth.cpp b/Bluetooth/Bluetooth.cpp
+index 0a11b5f7..07dd0d7d 100644
+--- a/Bluetooth/Bluetooth.cpp
++++ b/Bluetooth/Bluetooth.cpp
+@@ -23,6 +23,10 @@
+ 
+ #include <stdlib.h>
+ 
++#include "ctrlm_ipc.h"
++#include "ctrlm_ipc_rcu.h"
++#include "ctrlm_ipc_ble.h"
++#include "libIBus.h"
+ // IMPLEMENTATION NOTE
+ //
+ // Bluetooth Settings API in Thunder follows the schema proposed by Metrological what differs from the underlying
+@@ -246,6 +250,92 @@ namespace WPEFramework
+             return result;
+         }
+ 
++        const char* ctrlm_ble_state_str(ctrlm_ble_state_t status)
++        {
++            switch (status) {
++                case CTRLM_BLE_STATE_INITIALIZING: return("INITIALISING");
++                case CTRLM_BLE_STATE_IDLE:         return("IDLE");
++                case CTRLM_BLE_STATE_SEARCHING:    return("SEARCHING");
++                case CTRLM_BLE_STATE_PAIRING:      return("PAIRING");
++                case CTRLM_BLE_STATE_COMPLETE:     return("COMPLETE");
++                case CTRLM_BLE_STATE_FAILED:       return("FAILED");
++                default:                           return("UNKNOWN");
++            }
++        }
++
++        bool bleRCUDaemonStartPairing(int timeout)
++        {
++            bool retStatus = false;
++            IARM_Result_t iarmResult;
++            ctrlm_iarm_call_StartPairing_params_t startSearching;
++            ctrlm_main_iarm_call_status_t status;
++            ctrlm_iarm_RcuStatus_params_t netStatus;
++            ctrlm_network_id_t bleId = CTRLM_MAIN_NETWORK_ID_INVALID;
++
++            /* Get BLE N/W ID */
++            memset((void*)&status, 0, sizeof(status));
++            status.api_revision = CTRLM_MAIN_IARM_BUS_API_REVISION;
++            iarmResult = IARM_Bus_Call(CTRLM_MAIN_IARM_BUS_NAME, CTRLM_MAIN_IARM_CALL_STATUS_GET, (void*)&status, sizeof(status));
++            if (IARM_RESULT_SUCCESS != iarmResult) {
++                LOGERR("ERROR - STATUS_GET IARM_Bus_Call FAILED, iarmResult: %d", (int)iarmResult);
++            } else {
++                if (CTRLM_IARM_CALL_RESULT_SUCCESS != status.result) {
++                    LOGERR("ERROR - STATUS_GET FAILED, call_result: %d", (int)status.result);
++                } else {
++                    // Apparent success, search for the RF4CE network ID.
++                    for (int i = 0; i < status.network_qty; i++) {
++                        if (CTRLM_NETWORK_TYPE_BLUETOOTH_LE == status.networks[i].type) {
++                            bleId = status.networks[i].id;
++                            LOGWARN("WARN - CTRLM_MAIN_IARM_CALL_STATUS_GET bleId = %d.", bleId);
++                        }
++                    }
++                }
++            }
++
++            if (CTRLM_MAIN_NETWORK_ID_INVALID == bleId) {
++                LOGERR("ERROR - No BLE network_id found!!");
++            } else {
++                // Retrieve RF4CE network information.
++                memset((void*)&netStatus, 0, sizeof(netStatus));
++                netStatus.api_revision = CTRLM_MAIN_IARM_BUS_API_REVISION;
++                netStatus.network_id   = bleId;
++                iarmResult = IARM_Bus_Call(CTRLM_MAIN_IARM_BUS_NAME, CTRLM_MAIN_IARM_CALL_GET_RCU_STATUS, (void*)&netStatus, sizeof(netStatus));
++                if (IARM_RESULT_SUCCESS == iarmResult) {
++                    LOGINFO("BLE network status - netType: <BLE>, network_id: <%d>, status: <%s>, num_remotes: <%d>.\n",
++                            netStatus.network_id, ctrlm_ble_state_str(netStatus.status), netStatus.num_remotes);
++                } else 
++                    LOGERR("ERROR - NETWORK_STATUS_GET IARM_Bus_Call FAILED, iarmResult: %d", (int)iarmResult);
++
++                if (netStatus.num_remotes > 0) {
++                    /* Remote paired ?? */
++                    //LOGERR("Paired RCU detected\n");
++                    for (int i = 0; i < netStatus.num_remotes; i++) {
++                        LOGINFO("[%d] connected = %d, name = '%s', make = '%s', model = '%s'\n",
++                                (i+1), (bool)netStatus.remotes[i].connected, std::string(netStatus.remotes[i].name),
++                                std::string(netStatus.remotes[i].make), std::string(netStatus.remotes[i].model));
++                    }
++                    //LOGERR("Skipping repeated ControlMgr based pairing...\n");
++                    return false;
++                }
++
++                memset((void*)&startSearching, 0, sizeof(startSearching));
++                startSearching.api_revision = CTRLM_MAIN_IARM_BUS_API_REVISION;
++                startSearching.network_id   = bleId;
++                startSearching.timeout      = timeout;
++                iarmResult = IARM_Bus_Call(CTRLM_MAIN_IARM_BUS_NAME, CTRLM_MAIN_IARM_CALL_START_PAIRING, (void *)&startSearching, sizeof(startSearching));
++                if (IARM_RESULT_SUCCESS != iarmResult) {
++                    LOGERR("ERROR - CTRLM_MAIN_IARM_CALL_START_PAIRING IARM_Bus_Call FAILED, iarmResult: %d.", (int)iarmResult);
++                } else {
++                    if (CTRLM_IARM_CALL_RESULT_SUCCESS != startSearching.result) {
++                        LOGERR("ERROR - CTRLM_MAIN_IARM_CALL_START_PAIRING FAILED, result: %d.", (int)startSearching.result);
++                    } else {
++                        retStatus = true;
++                    }
++                }
++            }
++            return retStatus;
++        }
++
+         string Bluetooth::startDeviceDiscovery(int timeout, const string &discProfile)
+         {
+             BTRMGR_Result_t rc = BTRMGR_RESULT_SUCCESS;
+@@ -283,6 +373,8 @@ namespace WPEFramework
+                         lenDevOpDiscType = BTRMGR_DEVICE_OP_TYPE_UNKNOWN;
+                     }
+ 
++                    if (!bleRCUDaemonStartPairing(timeout)) {
++                        LOGERR("bleStartPairing failed. BLERCUDaemon may not initiate RCU pairing...");
+                     rc = BTRMGR_StartDeviceDiscovery(0, lenDevOpDiscType);
+                     if (BTRMGR_RESULT_SUCCESS != rc)
+                     {
+@@ -301,6 +393,7 @@ namespace WPEFramework
+                     {
+                         startDiscoveryTimer(timeout * 1000);
+                     }
++                    }
+                 }
+                 else
+                     return STATUS_NO_BLUETOOTH_HARDWARE;
+diff --git a/Bluetooth/CMakeLists.txt b/Bluetooth/CMakeLists.txt
+index 0d04f88a..7610217b 100644
+--- a/Bluetooth/CMakeLists.txt
++++ b/Bluetooth/CMakeLists.txt
+@@ -45,6 +45,17 @@ find_package(IARMBus)
+ target_include_directories(${MODULE_NAME} PRIVATE ../helpers ${IARMBUS_INCLUDE_DIRS})
+ target_link_libraries(${MODULE_NAME} PRIVATE ${NAMESPACE}Plugins::${NAMESPACE}Plugins ${IARMBUS_LIBRARIES})
+ 
++find_package(CTRLM)
++if (CTRLM_FOUND)
++    find_package(IARMBus)
++    add_definitions(-DCTRLM_FOUND)
++    target_include_directories(${MODULE_NAME} PRIVATE ${IARMBUS_INCLUDE_DIRS})
++    target_include_directories(${MODULE_NAME} PRIVATE ${CTRLM_INCLUDE_DIRS})
++    target_link_libraries(${MODULE_NAME} PRIVATE ${NAMESPACE}Plugins::${NAMESPACE}Plugins ${IARMBUS_LIBRARIES})
++else (CTRLM_FOUND)
++    target_link_libraries(${MODULE_NAME} PRIVATE ${NAMESPACE}Plugins::${NAMESPACE}Plugins)
++endif(CTRLM_FOUND)
++
+ install(TARGETS ${MODULE_NAME}
+         DESTINATION lib/${STORAGE_DIRECTORY}/plugins)
+ 
+-- 
+2.17.1
+
