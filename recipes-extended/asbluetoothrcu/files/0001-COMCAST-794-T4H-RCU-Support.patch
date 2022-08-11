@@ -1,6 +1,6 @@
-From 3d63305ea47f12c69bb16b439e5241b2cbdd8ba7 Mon Sep 17 00:00:00 2001
+From c1fe377a5f792231ae6e251cb9c7aabd9a506982 Mon Sep 17 00:00:00 2001
 From: Aswin M <aswin_m@comcast.com>
-Date: Wed, 20 Jul 2022 12:14:09 +0000
+Date: Thu, 11 Aug 2022 14:52:01 +0000
 Subject: [PATCH] COMCAST-794: T4H RCU Support
 
 Reason for change: Add T4H RCU model and related UUID details.
@@ -13,18 +13,18 @@ Source: RDKM
 
 Signed-off-by: Aswin M <Aswin_M@comcast.com>
 ---
- daemon/resources/config.rdk.json              |  21 +-
+ daemon/resources/config.rdk.json              |  22 +-
  .../bleservices/gatt/gatt_audiopipe.cpp       |  23 +-
  .../blercu/bleservices/gatt/gatt_audiopipe.h  |   7 +-
- .../bleservices/gatt/gatt_audioservice.cpp    | 257 ++++++++++++++++--
+ .../bleservices/gatt/gatt_audioservice.cpp    | 254 ++++++++++++++++--
  .../bleservices/gatt/gatt_audioservice.h      |   6 +
  .../blercu/bleservices/gatt/gatt_services.cpp |  10 +-
  daemon/source/utils/bleuuid.cpp               |  15 +-
  daemon/source/utils/bleuuid.h                 |   5 +-
- 8 files changed, 295 insertions(+), 49 deletions(-)
+ 8 files changed, 295 insertions(+), 47 deletions(-)
 
 diff --git a/daemon/resources/config.rdk.json b/daemon/resources/config.rdk.json
-index 7efc236..dafa805 100644
+index 7ed1e40..60d2013 100644
 --- a/daemon/resources/config.rdk.json
 +++ b/daemon/resources/config.rdk.json
 @@ -1,8 +1,8 @@
@@ -38,7 +38,7 @@ index 7efc236..dafa805 100644
  		"unpair": 20000
  	},
  
-@@ -132,6 +132,23 @@
+@@ -138,6 +138,24 @@
  				]
  			}
  		},
@@ -48,6 +48,7 @@ index 7efc236..dafa805 100644
 +			"oui": "FF:FF:FF",
 +			"pairingNameFormat": "Notus S1",
 +			"scanNameFormat": "Notus S1",
++			"connectNameFormat": "Notus S1",
 +			"filterBytes": [ 19, 21 ],
 +			"services": {
 +				"type": "gatt",
@@ -171,10 +172,10 @@ index 9f13d89..d716125 100644
  	bool m_running;
  
 diff --git a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp
-index 4c7cd16..1b86df2 100644
+index 93b4abd..0c5bc84 100644
 --- a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp
 +++ b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.cpp
-@@ -99,14 +98,15 @@ void GattAudioService::init()
+@@ -99,14 +99,15 @@ void GattAudioService::init()
  	// add the transitions:      From State         ->      Event                   ->  To State
  	m_stateMachine.addTransition(IdleState,                 StartServiceRequestEvent,   ReadyState);
  	m_stateMachine.addTransition(ReadyState,                StopServiceRequestEvent,    IdleState);
@@ -183,7 +184,7 @@ index 4c7cd16..1b86df2 100644
 +	m_stateMachine.addTransition(ReadyState,                StartStreamingRequestEvent, StreamingState);
  
 -	m_stateMachine.addTransition(EnableNotificationsState,  NotificationsEnabledEvent,  StartStreamingState);
-+	//m_stateMachine.addTransition(EnableNotificationsState,  NotificationsEnabledEvent,  StreamingState);
++	//m_stateMachine.addTransition(EnableNotificationsState,  NotificationsEnabledEvent,  StartStreamingState);
  
  	m_stateMachine.addTransition(StartStreamingState,       StreamingStartedEvent,      StreamingState);
  
@@ -194,7 +195,7 @@ index 4c7cd16..1b86df2 100644
  
  	m_stateMachine.addTransition(StopStreamingState,        StreamingStoppedEvent,      ReadyState);
  
-@@ -238,6 +238,41 @@ bool GattAudioService::getAudioDataCharacteristic(const QSharedPointer<const Ble
+@@ -238,6 +239,41 @@ bool GattAudioService::getAudioDataCharacteristic(const QSharedPointer<const Ble
  	return true;
  }
  
@@ -236,7 +237,7 @@ index 4c7cd16..1b86df2 100644
  // -----------------------------------------------------------------------------
  /*!
  	Starts the service by sending a initial request for the audio to stop
-@@ -253,16 +288,14 @@ bool GattAudioService::start(const QSharedPointer<const BleGattService> &gattSer
+@@ -253,16 +289,14 @@ bool GattAudioService::start(const QSharedPointer<const BleGattService> &gattSer
  	}
  
  	// get the dbus proxies to the audio characteristics
@@ -257,10 +258,10 @@ index 4c7cd16..1b86df2 100644
  
  	// check we're not already started
  	if (m_stateMachine.state() != IdleState) {
-@@ -318,17 +351,17 @@ void GattAudioService::onEnteredState(int state)
- {
- 	switch (state) {
- 		case IdleState:
+@@ -322,17 +356,17 @@ void GattAudioService::onEnteredState(int state)
+ 				qInfo() << "Disabling notifications for m_audioDataCharacteristic";
+ 				m_audioDataCharacteristic->enableNotifications(false);
+ 			}
 -			m_audioGainCharacteristic.reset();
 -			m_audioCtrlCharacteristic.reset();
 +			m_audioCommandCharacteristic.reset();
@@ -268,20 +269,20 @@ index 4c7cd16..1b86df2 100644
  			break;
  
  		case ReadyState:
-+			EnterEnableCmdNotificationsState();
++		    EnterEnableCmdNotificationsState();
  			emit ready();
  			break;
  
  		case EnableNotificationsState:
 -			onEnteredEnableNotificationsState();
-+			//EnterEnableCmdNotificationsState();
++			//onEnteredEnableNotificationsState();
  			break;
  
  		case StartStreamingState:
-@@ -367,6 +400,150 @@ void GattAudioService::onExitedState(int state)
+@@ -370,6 +404,149 @@ void GattAudioService::onExitedState(int state)
+ 			break;
  	}
  }
- 
 +// -----------------------------------------------------------------------------
 +/*!
 +   \internal
@@ -425,19 +426,10 @@ index 4c7cd16..1b86df2 100644
 +   }
 +}
 +
-+
+ 
  // -----------------------------------------------------------------------------
  /*!
- 	\internal
-@@ -399,7 +576,6 @@ void GattAudioService::onEnteredEnableNotificationsState()
- 			m_stateMachine.postEvent(NotificationsEnabledEvent);
- 		};
- 
--
- 	// send a request to the bluez daemon to start notifing us of battery
- 	// level changes
- 	Future<> result = m_audioDataCharacteristic->enableNotifications(true);
-@@ -524,7 +700,7 @@ void GattAudioService::onEnteredStreamingState()
+@@ -527,7 +704,7 @@ void GattAudioService::onEnteredStreamingState()
  	m_timeoutEventId = m_stateMachine.postDelayedEvent(StopStreamingRequestEvent, 30000);
  
  	// Once streaming data is actually received, emit the streamingChanged signal a single time
@@ -446,7 +438,7 @@ index 4c7cd16..1b86df2 100644
  }
  
  // -----------------------------------------------------------------------------
-@@ -564,9 +740,9 @@ void GattAudioService::onExitedStreamingState()
+@@ -567,9 +744,9 @@ void GattAudioService::onExitedStreamingState()
  
  	// tell anyone who cares that streaming has stopped, but only if we've received actual
  	// audio data and streamingChanged(true) was previously signaled
@@ -459,7 +451,7 @@ index 4c7cd16..1b86df2 100644
  }
  
  // -----------------------------------------------------------------------------
-@@ -664,24 +840,59 @@ void GattAudioService::onExitedStreamingSuperState()
+@@ -667,26 +844,61 @@ void GattAudioService::onExitedStreamingSuperState()
   */
  void GattAudioService::onAudioDataNotification(const QByteArray &value)
  {
@@ -487,8 +479,8 @@ index 4c7cd16..1b86df2 100644
  	if (m_audioPipe)
 -		m_audioPipe->addNotification(reinterpret_cast<const quint8*>(value.constData()));
 +		m_audioPipe->addNotification(reinterpret_cast<const quint8*>(value.constData()),value.size());
-+}
-+
+ }
+ 
 +// -----------------------------------------------------------------------------
 +/*!
 +   \internal
@@ -520,9 +512,11 @@ index 4c7cd16..1b86df2 100644
 +			emit streamingChanged(false);
 +		}
 +   }
- }
- 
++ }
++ 
  // -----------------------------------------------------------------------------
+ /*!
+ 	\internal
 diff --git a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h b/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h
 index b3c6840..5951ba0 100644
 --- a/daemon/source/blercu/bleservices/gatt/gatt_audioservice.h
