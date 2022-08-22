@@ -81,7 +81,7 @@ index 8c0579b..f93cb90 100755
 +				"jsonrpc": "2.0",
 +				"id": 3,
 +				"method": "org.rdk.RDKShell.1.setFocus",
-+				"params": { "client": "HtmlApp"}
++				"params": { "client": "SmartScreen"}
 +				}`;
 +			
 +				FocusReq.send(Focuscmd);
@@ -113,7 +113,7 @@ index 8c0579b..f93cb90 100755
 +		"jsonrpc": "2.0",
 +		"id": 3,
 +		"method": "org.rdk.RDKShell.1.setVisibility",
-+		"params": { "client": "HtmlApp" , "visible": true }
++		"params": { "client": "SmartScreen" , "visible": true }
 +		}`;
 +
 +		SetVisibility.send(SetVisibilityCmd);
@@ -153,7 +153,7 @@ index 8c0579b..f93cb90 100755
 +				"jsonrpc": "2.0",
 +				"id": 3,
 +				"method": "org.rdk.RDKShell.1.setFocus",
-+				"params": { "client": "HtmlApp"}
++				"params": { "client": "SmartScreen"}
 +				}`;
 +			
 +				FocusReq.send(Focuscmd);
@@ -185,7 +185,7 @@ index 8c0579b..f93cb90 100755
 +		"jsonrpc": "2.0",
 +		"id": 3,
 +		"method": "org.rdk.RDKShell.1.setVisibility",
-+		"params": { "client": "HtmlApp" , "visible": true }
++		"params": { "client": "SmartScreen" , "visible": true }
 +		}`;
 +
 +		SetVisibility.send(SetVisibilityCmd);
@@ -226,7 +226,7 @@ index 8c0579b..f93cb90 100755
 +				"jsonrpc": "2.0",
 +				"id": 3,
 +				"method": "org.rdk.RDKShell.1.setFocus",
-+				"params": { "client": "HtmlApp"}
++				"params": { "client": "SmartScreen"}
 +				}`;
 +			
 +				FocusReq.send(Focuscmd);
@@ -258,7 +258,7 @@ index 8c0579b..f93cb90 100755
 +		"jsonrpc": "2.0",
 +		"id": 3,
 +		"method": "org.rdk.RDKShell.1.setVisibility",
-+		"params": { "client": "HtmlApp" , "visible": true }
++		"params": { "client": "SmartScreen" , "visible": true }
 +		}`;
 +
 +		SetVisibility.send(SetVisibilityCmd);
@@ -303,7 +303,7 @@ index 8c0579b..f93cb90 100755
 +				"jsonrpc": "2.0",
 +				"id": 3,
 +				"method": "org.rdk.RDKShell.1.setFocus",
-+				"params": { "client": "HtmlApp"}
++				"params": { "client": "SmartScreen"}
 +				}`;
 +			
 +				FocusReq.send(Focuscmd);
@@ -335,7 +335,7 @@ index 8c0579b..f93cb90 100755
 +		"jsonrpc": "2.0",
 +		"id": 3,
 +		"method": "org.rdk.RDKShell.1.setVisibility",
-+		"params": { "client": "HtmlApp" , "visible": true }
++		"params": { "client": "SmartScreen" , "visible": true }
 +		}`;
 +
 +		SetVisibility.send(SetVisibilityCmd);
@@ -399,7 +399,7 @@ index 8c0579b..f93cb90 100755
 +	"jsonrpc": "2.0",
 +	"id": 3,
 +	"method": "org.rdk.RDKShell.1.setVisibility",
-+	"params": { "client": "HtmlApp" , "visible": false }
++	"params": { "client": "SmartScreen" , "visible": false }
 +	}`;
 +
 +	SetVisibility.send(SetVisibilityCmd);
