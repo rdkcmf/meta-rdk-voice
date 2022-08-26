@@ -1,6 +1,6 @@
-From 3e93f17242ddd0b3432ca9657a3b45b7f0804aa4 Mon Sep 17 00:00:00 2001
+From b10f151998774fc97c851ff533f95f607b1fd05d Mon Sep 17 00:00:00 2001
 From: Aswin M <aswin_m@comcast.com>
-Date: Fri, 1 Jul 2022 05:55:22 +0000
+Date: Fri, 26 Aug 2022 10:38:23 +0000
 Subject: [PATCH] HX44X-149 : Bring in Voice Support
 
 Reason for change: Integrate xr-speech-avs with control manager
@@ -44,10 +44,10 @@ index 95b9ece..a9c75e8 100644
  [  --enable-ble    Turn on RDKX logger support],
  [case "${enableval}" in
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 4e7354c..0a7efaa 100644
+index c1ca859..82c3db3 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -87,6 +87,10 @@ if SUPPORT_VOICE_DEST_ALSA
+@@ -88,6 +88,10 @@ if SUPPORT_VOICE_DEST_ALSA
  controlMgr_SOURCES  += voice/endpoints/ctrlm_voice_endpoint_sdt.cpp
  endif
  
@@ -58,7 +58,7 @@ index 4e7354c..0a7efaa 100644
  if RF4CE_ENABLED
  AM_CPPFLAGS += -DCTRLM_NETWORK_RF4CE
  AM_CPPFLAGS += -DCTRLM_NETWORK_HAS_HAL_NVM
-@@ -264,6 +268,11 @@ AM_CPPFLAGS += -DSUPPORT_VOICE_DEST_ALSA
+@@ -265,6 +269,11 @@ AM_CPPFLAGS += -DSUPPORT_VOICE_DEST_ALSA
  AM_LDFLAGS  += -lvirtualmic
  endif
  
@@ -71,7 +71,7 @@ index 4e7354c..0a7efaa 100644
  AM_CPPFLAGS += -DDUNFELL_BUILD_SUPPORT
  endif
 diff --git a/src/ble/ctrlm_hal_ble.cpp b/src/ble/ctrlm_hal_ble.cpp
-index 3f0cbc3..0061c35 100644
+index a64832f..2a17b7a 100644
 --- a/src/ble/ctrlm_hal_ble.cpp
 +++ b/src/ble/ctrlm_hal_ble.cpp
 @@ -44,6 +44,9 @@
@@ -94,7 +94,7 @@ index 3f0cbc3..0061c35 100644
  
  // -----------------------------------
  // Utility functions
-@@ -546,6 +552,9 @@ static void ctrlm_hal_ble_DBusOnPropertyChangedCB ( GDBusProxy *proxy,
+@@ -540,6 +546,9 @@ static void ctrlm_hal_ble_DBusOnPropertyChangedCB ( GDBusProxy *proxy,
                      }
                  }
                  g_mutex_unlock(&g_ctrlm_hal_ble->mutex_metadata);
@@ -104,7 +104,7 @@ index 3f0cbc3..0061c35 100644
              }
  
              if (NULL != g_ctrlm_hal_ble->main_init.ind_status && CTRLM_HAL_BLE_PROPERTY_UNKNOWN != rcu_status.property_updated) {
-@@ -600,6 +609,11 @@ static void ctrlm_hal_ble_DBusOnSignalReceivedCB (  GDBusProxy *proxy,
+@@ -621,6 +630,11 @@ static void ctrlm_hal_ble_DBusOnSignalReceivedCB (  GDBusProxy *proxy,
                      if (CTRLM_HAL_RESULT_SUCCESS != g_ctrlm_hal_ble->main_init.ind_paired(g_ctrlm_hal_ble->main_init.network_id, &params)) {
                          LOG_ERROR("%s: RCU paired indication failed\n", __FUNCTION__);
                      }
@@ -116,7 +116,7 @@ index 3f0cbc3..0061c35 100644
                  }
              } else {
                  LOG_ERROR("%s: Failed to setup HAL metadata for device: 0x%llX, not sending indication up to network\n", __FUNCTION__,ieee_address);
-@@ -2210,3 +2224,24 @@ void *ctrlm_hal_ble_KeyMonitorThread(void *data)
+@@ -2209,3 +2223,24 @@ void *ctrlm_hal_ble_KeyMonitorThread(void *data)
  // -------------------------------------------------------------------------------------------------------------
  // END - Key Monitor Thread
  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,10 +142,10 @@ index 3f0cbc3..0061c35 100644
 +// END - AVS Init Function
 +////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 diff --git a/src/voice/ctrlm_voice_obj_generic.cpp b/src/voice/ctrlm_voice_obj_generic.cpp
-index 1e72754..0c09b6e 100644
+index 8d67021..a359602 100644
 --- a/src/voice/ctrlm_voice_obj_generic.cpp
 +++ b/src/voice/ctrlm_voice_obj_generic.cpp
-@@ -41,6 +41,10 @@
+@@ -42,6 +42,10 @@
  #include "ctrlm_voice_endpoint_sdt.h"
  #endif
  
@@ -156,7 +156,7 @@ index 1e72754..0c09b6e 100644
  // Application Interface Implementation
  ctrlm_voice_generic_t::ctrlm_voice_generic_t() : ctrlm_voice_t() {
      LOG_INFO("%s: Constructor\n", __FUNCTION__);
-@@ -53,6 +57,9 @@ ctrlm_voice_generic_t::ctrlm_voice_generic_t() : ctrlm_voice_t() {
+@@ -55,6 +59,9 @@ ctrlm_voice_generic_t::ctrlm_voice_generic_t() : ctrlm_voice_t() {
      #ifdef SUPPORT_VOICE_DEST_ALSA
      this->obj_sdt        = NULL;
      #endif
@@ -166,7 +166,7 @@ index 1e72754..0c09b6e 100644
  }
  
  ctrlm_voice_generic_t::~ctrlm_voice_generic_t() {
-@@ -69,6 +76,9 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
+@@ -72,6 +79,9 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
      #ifdef SUPPORT_VOICE_DEST_ALSA
      this->obj_sdt        = new ctrlm_voice_endpoint_sdt_t(this);
      #endif
@@ -176,7 +176,7 @@ index 1e72754..0c09b6e 100644
      if(this->obj_ws->open() == false) {
          LOG_ERROR("%s: Failed to open speech WS\n", __FUNCTION__);
          xrsr_close();
-@@ -89,12 +99,22 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
+@@ -96,6 +106,13 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
          g_assert(0);
      }
      #endif
@@ -190,6 +190,7 @@ index 1e72754..0c09b6e 100644
      this->endpoints.push_back(this->obj_ws);
      this->endpoints.push_back(this->obj_http);
      this->endpoints.push_back(this->obj_ws_nextgen);
+@@ -103,6 +120,9 @@ void ctrlm_voice_generic_t::voice_sdk_open(json_t *json_obj_vsdk) {
      #ifdef SUPPORT_VOICE_DEST_ALSA
      this->endpoints.push_back(this->obj_sdt);
      #endif
@@ -199,7 +200,7 @@ index 1e72754..0c09b6e 100644
  }
  
  void ctrlm_voice_generic_t::voice_sdk_close() {
-@@ -123,6 +143,12 @@ void ctrlm_voice_generic_t::voice_sdk_close() {
+@@ -135,6 +155,12 @@ void ctrlm_voice_generic_t::voice_sdk_close() {
          this->obj_sdt = NULL;
      }
      #endif
@@ -212,7 +213,7 @@ index 1e72754..0c09b6e 100644
  }
  
  void ctrlm_voice_generic_t::voice_sdk_update_routes() {
-@@ -279,7 +305,37 @@ void ctrlm_voice_generic_t::voice_sdk_update_routes() {
+@@ -317,7 +343,37 @@ void ctrlm_voice_generic_t::voice_sdk_update_routes() {
                  i++;
              }
          }
@@ -251,7 +252,7 @@ index 1e72754..0c09b6e 100644
          else {
              LOG_ERROR("%s: unsupported url <%s>", __FUNCTION__, url->c_str());
          }
-@@ -329,5 +385,10 @@ void ctrlm_voice_generic_t::mask_pii_updated(bool enable) {
+@@ -367,5 +423,10 @@ void ctrlm_voice_generic_t::mask_pii_updated(bool enable) {
          this->obj_sdt->voice_stb_data_mask_pii_set(enable);
      }
      #endif
@@ -263,10 +264,10 @@ index 1e72754..0c09b6e 100644
  }
  
 diff --git a/src/voice/ctrlm_voice_obj_generic.h b/src/voice/ctrlm_voice_obj_generic.h
-index da8674a..59b61e4 100644
+index 3439054..5b63193 100644
 --- a/src/voice/ctrlm_voice_obj_generic.h
 +++ b/src/voice/ctrlm_voice_obj_generic.h
-@@ -46,5 +46,8 @@ class ctrlm_voice_generic_t : public ctrlm_voice_t {
+@@ -47,5 +47,8 @@ class ctrlm_voice_generic_t : public ctrlm_voice_t {
      #ifdef SUPPORT_VOICE_DEST_ALSA
      ctrlm_voice_endpoint_t * obj_sdt;
      #endif
