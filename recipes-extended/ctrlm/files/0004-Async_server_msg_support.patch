@@ -1,0 +1,73 @@
+From 6d84c5570ffa2d26f4be9d31b10099e1a5fc4273 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 27 Sep 2022 10:19:31 +0000
+Subject: [PATCH] RDKDEV-349 : RDK Voice stack - Support to send events and
+ response to AVS Server
+
+Reason for change: Added support for sending async messages to AVS server.
+Test Procedure: Enable necessary configurations and build.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ configure.ac                  | 9 +++++++++
+ src/Makefile.am               | 4 ++++
+ src/voice/ctrlm_voice_obj.cpp | 4 ++++
+ 3 files changed, 17 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index a9c75e8..46308da 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -30,6 +30,15 @@ AC_CONFIG_FILES([
+  src/Makefile
+ ])
+ 
++AC_ARG_ENABLE([async_srvr_msg_support],
++[  --enable-async_srvr_msg_support    Turn on Support Voice Destination AVS],
++[case "${enableval}" in
++  yes) async_srvr_msg_support=true ;;
++  no)  async_srvr_msg_support=false ;;
++  *) AC_MSG_ERROR([bad value ${enableval} for --enable-async_srvr_msg_support]) ;;
++esac],[async_srvr_msg_support=false])
++AM_CONDITIONAL([SUPPORT_ASYNC_SRVR_MSG], [test x$async_srvr_msg_support = xtrue])
++
+ AC_ARG_ENABLE([rdkxlogger],
+ [  --enable-rdkxlogger    Turn on RDKX logger support],
+ [case "${enableval}" in
+diff --git a/src/Makefile.am b/src/Makefile.am
+index edd68f8..19762cb 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -93,6 +93,10 @@ if SUPPORT_VOICE_DEST_AVS
+ controlMgr_SOURCES  += voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp
+ endif
+ 
++if SUPPORT_ASYNC_SRVR_MSG
++AM_CPPFLAGS += -DSUPPORT_ASYNC_SRVR_MSG
++endif
++
+ if RF4CE_ENABLED
+ AM_CPPFLAGS += -DCTRLM_NETWORK_RF4CE
+ AM_CPPFLAGS += -DCTRLM_NETWORK_HAS_HAL_NVM
+diff --git a/src/voice/ctrlm_voice_obj.cpp b/src/voice/ctrlm_voice_obj.cpp
+index 7e981c3..f04ca58 100644
+--- a/src/voice/ctrlm_voice_obj.cpp
++++ b/src/voice/ctrlm_voice_obj.cpp
+@@ -2296,7 +2296,11 @@ void ctrlm_voice_t::voice_session_end_callback(ctrlm_voice_session_end_cb_t *ses
+     }
+ 
+     this->state_dst = CTRLM_VOICE_STATE_DST_READY;
++
++    #ifndef SUPPORT_ASYNC_SRVR_MSG
+     this->endpoint_current = NULL;
++    #endif
++	
+     voice_session_info_reset();
+ 
+     // Check for incorrect semaphore values
+-- 
+2.17.1
+

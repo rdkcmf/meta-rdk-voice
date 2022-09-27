@@ -4,8 +4,10 @@ SRC_URI += " \
         ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0001-remove-jenkins-version-check.patch;apply=no', '', d)} \
         ${@bb.utils.contains('DISTRO_FEATURES', 't4hworkaround', 'file://0002-COMCAST-794-RDK-Voice-stack-T4H-session-support.patch', '', d)} \
         ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0003-Add-xr-speech-avs-support.patch;apply=no', '', d)} \
+        ${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'file://0004-Async_server_msg_support.patch', '', d)} \
     "
 
+EXTRA_OECONF_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' --enable-async_srvr_msg_support', ' ', d)}"
 EXTRA_OECONF_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' --enable-xrsr_sdt_avs', ' ', d)}"
 DEPENDS_append = "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', ' xr-speech-avs', ' ', d)}"
 

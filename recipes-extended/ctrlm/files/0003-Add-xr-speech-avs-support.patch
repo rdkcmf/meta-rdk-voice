@@ -454,7 +454,7 @@ index 0000000..abe9526
 +            this->voice_message_queue.push_back(dqm->msg);
 +            *dqm->result = true;
 +        } else {
-+            *dqm->result = true;
++            *dqm->result = avs_sdt_send_msg(dqm->msg);
 +        }
 +    }
 +    if(dqm->semaphore) {
