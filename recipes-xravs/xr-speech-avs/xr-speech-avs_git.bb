@@ -7,14 +7,14 @@ include include/xr_speech_avs.inc
 
 S = "${WORKDIR}/git/xr-speech-avs"
 
-DEPENDS += "wpeframework-interfaces asio rdkx-logger xr-speech-router"
+DEPENDS += "wpeframework-interfaces asio rdkx-logger xr-speech-router sqlite3"
 
 XLOG_MODULE_NAME="VSDK"
 
 DEPENDS += "skillmapper"
 RDEPENDS_${PN} += "skillmapper"
 
-LDFLAGS_append = " -lVoiceToApps"
+LDFLAGS_append = " -lVoiceToApps -lsqlite3"
 
 PACKAGECONFIG_append = " avs"
 
