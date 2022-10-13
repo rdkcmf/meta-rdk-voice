@@ -96,8 +96,8 @@ index 0a11b5f7..07dd0d7d 100644
 +                    //LOGERR("Paired RCU detected\n");
 +                    for (int i = 0; i < netStatus.num_remotes; i++) {
 +                        LOGINFO("[%d] connected = %d, name = '%s', make = '%s', model = '%s'\n",
-+                                (i+1), (bool)netStatus.remotes[i].connected, std::string(netStatus.remotes[i].name),
-+                                std::string(netStatus.remotes[i].make), std::string(netStatus.remotes[i].model));
++                                (i+1), (bool)netStatus.remotes[i].connected, netStatus.remotes[i].name,
++                                netStatus.remotes[i].make, netStatus.remotes[i].model);
 +                    }
 +                    //LOGERR("Skipping repeated ControlMgr based pairing...\n");
 +                    return false;
