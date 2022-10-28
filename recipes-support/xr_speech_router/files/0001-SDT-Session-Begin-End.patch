@@ -27,7 +27,7 @@ index b7aa57f..b4fcd21 100644
  
 +               if (!begin->retry && sdt->handlers.session_begin != NULL) {
 +                   XLOGD_INFO("Start SDT session....");
-+                   (*sdt->handlers.session_begin)(sdt->handlers.data, sdt->uuid, g_xrsr.src, dst_index, detector_result_ptr, &sdt->session_config_out, NULL, &begin->timestamp, transcription_in);
++                   (*sdt->handlers.session_begin)(sdt->handlers.data, sdt->uuid, session->src, dst_index, detector_result_ptr, &sdt->session_config_out, NULL, &begin->timestamp, transcription_in);
 +               }
 +
                 int pipe_fd_read = -1;

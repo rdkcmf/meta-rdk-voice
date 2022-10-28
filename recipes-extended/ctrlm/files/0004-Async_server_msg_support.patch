@@ -1,6 +1,6 @@
-From 6d84c5570ffa2d26f4be9d31b10099e1a5fc4273 Mon Sep 17 00:00:00 2001
-From: Aswin M <aswin_m@comcast.com>
-Date: Tue, 27 Sep 2022 10:19:31 +0000
+From 27bb831dfb920c1c899375671e5f1078874cfe7f Mon Sep 17 00:00:00 2001
+From: Aswin M <Aswin_M@comcast.com>
+Date: Fri, 28 Oct 2022 07:08:06 +0000
 Subject: [PATCH] RDKDEV-349 : RDK Voice stack - Support to send events and
  response to AVS Server
 
@@ -11,6 +11,7 @@ Upstream-Status: Pending
 Source: RDKM
 
 Signed-off-by: Aswin M <Aswin_M@comcast.com>
+Change-Id: I83ac97fd4aea5457c68762ac6eee4fa6fe634ecd
 ---
  configure.ac                  | 9 +++++++++
  src/Makefile.am               | 4 ++++
@@ -18,7 +19,7 @@ Signed-off-by: Aswin M <Aswin_M@comcast.com>
  3 files changed, 17 insertions(+)
 
 diff --git a/configure.ac b/configure.ac
-index a9c75e8..46308da 100644
+index 1dcdf06..a16c087 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -30,6 +30,15 @@ AC_CONFIG_FILES([
@@ -38,10 +39,10 @@ index a9c75e8..46308da 100644
  [  --enable-rdkxlogger    Turn on RDKX logger support],
  [case "${enableval}" in
 diff --git a/src/Makefile.am b/src/Makefile.am
-index edd68f8..19762cb 100644
+index a18ea61..ec02393 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -93,6 +93,10 @@ if SUPPORT_VOICE_DEST_AVS
+@@ -102,6 +102,10 @@ if SUPPORT_VOICE_DEST_AVS
  controlMgr_SOURCES  += voice/endpoints/ctrlm_voice_endpoint_sdt_avs.cpp
  endif
  
@@ -53,19 +54,19 @@ index edd68f8..19762cb 100644
  AM_CPPFLAGS += -DCTRLM_NETWORK_RF4CE
  AM_CPPFLAGS += -DCTRLM_NETWORK_HAS_HAL_NVM
 diff --git a/src/voice/ctrlm_voice_obj.cpp b/src/voice/ctrlm_voice_obj.cpp
-index 7e981c3..f04ca58 100644
+index c111cfe..80d0921 100644
 --- a/src/voice/ctrlm_voice_obj.cpp
 +++ b/src/voice/ctrlm_voice_obj.cpp
-@@ -2296,7 +2296,11 @@ void ctrlm_voice_t::voice_session_end_callback(ctrlm_voice_session_end_cb_t *ses
+@@ -2490,7 +2490,11 @@ void ctrlm_voice_t::voice_session_end_callback(ctrlm_voice_session_end_cb_t *ses
      }
  
-     this->state_dst = CTRLM_VOICE_STATE_DST_READY;
+     session->state_dst        = CTRLM_VOICE_STATE_DST_READY;
 +
 +    #ifndef SUPPORT_ASYNC_SRVR_MSG
-     this->endpoint_current = NULL;
+     session->endpoint_current = NULL;
 +    #endif
-+	
-     voice_session_info_reset();
++
+     voice_session_info_reset(session);
  
      // Check for incorrect semaphore values
 -- 
