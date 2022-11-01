@@ -1,0 +1,38 @@
+From d46d9c22988cf5235dcb0ac603357859e0636fee Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Thu, 10 Nov 2022 14:10:22 +0000
+Subject: [PATCH] sampleapp header library installation fix
+
+Reason for change: Fix to install the SDK header and libraries
+Test Procedure: Build with necessary configuration.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ .../IPCServerSampleApplication/Communication/src/CMakeLists.txt  | 1 +
+ .../LibIPCServerSampleApp/src/CMakeLists.txt                     | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/SampleApplications/IPCServerSampleApplication/Communication/src/CMakeLists.txt b/SampleApplications/IPCServerSampleApplication/Communication/src/CMakeLists.txt
+index c220dd824f..34ffd67193 100644
+--- a/SampleApplications/IPCServerSampleApplication/Communication/src/CMakeLists.txt
++++ b/SampleApplications/IPCServerSampleApplication/Communication/src/CMakeLists.txt
+@@ -41,3 +41,4 @@ else()
+             "${OPENSSL_SSL_LIBRARY}"
+             "${OPENSSL_CRYPTO_LIBRARY}")
+ endif()
++asdk_install()
+diff --git a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt
+index ca625b989f..23a0135d6c 100644
+--- a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt
++++ b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt
+@@ -201,3 +201,4 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+ endif ()
+ 
+ add_rpath_to_target("LibIPCServerSampleApp")
++asdk_install()
+-- 
+2.17.1
+

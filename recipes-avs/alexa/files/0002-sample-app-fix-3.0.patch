@@ -1,0 +1,32 @@
+From 75b2fde31c7bdfaa71f07ff81b0f26880f4f9655 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 1 Nov 2022 07:15:14 +0000
+Subject: [PATCH] sample app fix
+
+Reason for change: Build get broken with xr-speech-avs
+Test Procedure: Build with necessary configuration.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ .../include/IPCServerSampleApp/SampleApplication.h              | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h
+index 3af784edbb..d7b5197dc6 100644
+--- a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h
++++ b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h
+@@ -145,7 +145,7 @@ public:
+             avsCommon::sdkInterfaces::ChannelVolumeInterface::Type speakerType);
+     };
+ 
+-private:
++protected:
+     /**
+      * Initialize a SampleApplication.
+      *
+-- 
+2.17.1
+

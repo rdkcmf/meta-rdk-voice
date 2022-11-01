@@ -1,0 +1,54 @@
+From 60f6625c88dca336e638ec390f6b1e219a158781 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 1 Nov 2022 08:40:41 +0000
+Subject: [PATCH] Add-support-for-GUI-external-JS-functions
+
+Reason for change: Add support for external JS functions from the GUI Client.
+Test Procedure: Enable necessary configurations and build with avs-sdk-oobe-screens.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ .../alexa-smart-screen-sample-app/src/components/SampleApp.ts  | 2 ++
+ tsconfig.settings.json                                         | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts b/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts
+index cefe13e..f958c78 100644
+--- a/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts
++++ b/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts
+@@ -254,6 +254,7 @@ IVisualCharacteristicsObserver, IWindowManagerObserver {
+   }
+ 
+   public onAuthorizationStateChanged(authState : AuthorizationState) {
++    window['onHandleAuthorizationStateChanged'](authState);
+     if (authState === this.authorizationState) return;
+     this.authorizationState = authState;
+     // If Auth state changes to anything but Authorizing reset the cached request, since it's no longer valid
+@@ -272,6 +273,7 @@ IVisualCharacteristicsObserver, IWindowManagerObserver {
+   }
+ 
+   public onAuthorizationRequested(authRequest : ICBLAuthorizationRequest) {
++    window['onHandleRequestAuthorization'](authRequest);	
+     this.authorizationRequest = authRequest;
+     this.authorizationState = AuthorizationState.AUTHORIZING;
+     this.clientConnection = ClientConnection.CONNECTED;
+diff --git a/tsconfig.settings.json b/tsconfig.settings.json
+index ec8f542..6ca7072 100755
+--- a/tsconfig.settings.json
++++ b/tsconfig.settings.json
+@@ -30,7 +30,8 @@
+     "composite": true,
+     "declarationMap": true,
+     "declaration": true,
+-    "allowSyntheticDefaultImports": true
++    "allowSyntheticDefaultImports": true,
++    "suppressImplicitAnyIndexErrors": true
+   },
+   "exclude": [
+     "node_modules",
+-- 
+2.17.1
+

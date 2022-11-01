@@ -1,0 +1,54 @@
+From acc09d0f364ece0d1d6325d22626b6ed559eeebd Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 1 Nov 2022 08:47:45 +0000
+Subject: [PATCH] Voice Chrome Addition
+
+Reason for change: Build with voice chrome
+Test Procedure: Build with necessary configuration.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ samples/alexa-smart-screen-sample-app/package.json            | 1 +
+ .../alexa-smart-screen-sample-app/src/components/SampleApp.ts | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/samples/alexa-smart-screen-sample-app/package.json b/samples/alexa-smart-screen-sample-app/package.json
+index 1225615..45fa73e 100644
+--- a/samples/alexa-smart-screen-sample-app/package.json
++++ b/samples/alexa-smart-screen-sample-app/package.json
+@@ -33,6 +33,7 @@
+     "@alexa-smart-screen/template-runtime": "^1.0.0",
+     "@alexa-smart-screen/web-socket": "^1.0.0",
+     "@alexa-smart-screen/window-manager": "^1.0.0",
++    "@alexa-smart-screen/voice-chrome-linear": "^1.0.0",
+     "@babel/core": "^7.16.0",
+     "@babel/plugin-proposal-class-properties": "^7.16.0",
+     "@babel/plugin-proposal-object-rest-spread": "^7.16.0",
+diff --git a/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts b/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts
+index f958c78..a9f4d00 100644
+--- a/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts
++++ b/samples/alexa-smart-screen-sample-app/src/components/SampleApp.ts
+@@ -78,7 +78,7 @@ import {
+ } from '@alexa-smart-screen/app-utils';
+ import { Router } from '@alexa-smart-screen/router';
+ import { CaptionsRenderer } from '@alexa-smart-screen/sample-captions';
+-import { AttentionSystemRenderer } from '@alexa-smart-screen/sample-attention-system';
++import { VoiceChromeRenderer } from '@alexa-smart-screen/voice-chrome-linear';
+ import { BinderClient, IBinderClientConfig } from '@alexa-smart-screen/binder-client';
+ import { ISampleAppConfigPayload } from 'config/ISampleAppConfigPayload';
+ 
+@@ -198,7 +198,7 @@ IVisualCharacteristicsObserver, IWindowManagerObserver {
+ 
+     this.captionsHandler = new CaptionsHandler(this.loggerFactory);
+     this.captionsRenderer = new CaptionsRenderer(this.captionsHandler);
+-    this.attentionSystemRenderer = new AttentionSystemRenderer();
++    this.attentionSystemRenderer = new VoiceChromeRenderer();
+ 
+     this.focusEvent = new AudioFocusManagerEvent(this.client, this.loggerFactory);
+     this.captionsEvent = new CaptionsEvent(this.client);
+-- 
+2.17.1
+

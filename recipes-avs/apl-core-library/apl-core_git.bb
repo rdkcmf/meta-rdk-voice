@@ -15,13 +15,7 @@ OECMAKE_GENERATOR = "Unix Makefiles"
 BASE_URI ?= "git://github.com/alexa/apl-core-library.git;branch=master;protocol=https;name=apl-core-lib"
 SRC_URI   = "${BASE_URI}"
 
-#v1.6
-#SRCREV_apl-core-lib ="11e1d958f0dba15d02ab7c1bdb29198b3dbdb685"
-
-#v1.5.1
-#SRCREV_apl-core-lib ="5707cb07f07c788c24cc1064f6164e20bd0bfec6"
-#v1.5
-SRCREV_apl-core-lib ="d80bb154bec280b88640c9c917283277ce0394e2"
+SRCREV_apl-core-lib ="${@bb.utils.contains('DISTRO_FEATURES', 'alexa-sdk-3.0', '5c43a0be0c2557955d2400707dd03ba544787ffd', 'd80bb154bec280b88640c9c917283277ce0394e2', d)}"
 
 LDFLAGS += "-pthread"
 

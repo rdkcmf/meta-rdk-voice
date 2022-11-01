@@ -1,0 +1,45 @@
+From 36f9f05c1c8b5bb0639f110380767274fc55a3b3 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 1 Nov 2022 07:19:22 +0000
+Subject: [PATCH] Build the SampleApplication as library
+
+Reason for change: Build the SampleApp as shared libary
+Test Procedure: Build with necessary configuration.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ .../LibIPCServerSampleApp/src/CMakeLists.txt                  | 3 ++-
+ .../IPCServerSampleApplication/src/CMakeLists.txt             | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt
+index 565f2c16c4..ca625b989f 100644
+--- a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt
++++ b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/CMakeLists.txt
+@@ -66,7 +66,8 @@ IF (HAS_EXTERNAL_MEDIA_PLAYER_ADAPTERS)
+     endforeach (myfile)
+ ENDIF ()
+ 
+-add_library(LibIPCServerSampleApp ${LibIPCServerSampleApp_SOURCES})
++add_library(LibIPCServerSampleApp SHARED ${LibIPCServerSampleApp_SOURCES})
++set_property(TARGET LibIPCServerSampleApp PROPERTY POSITION_INDEPENDENT_CODE ON)
+ 
+ target_include_directories(LibIPCServerSampleApp PUBLIC
+         "${LibIPCServerSampleApp_SOURCE_DIR}/include"
+diff --git a/SampleApplications/IPCServerSampleApplication/src/CMakeLists.txt b/SampleApplications/IPCServerSampleApplication/src/CMakeLists.txt
+index d43d775c0d..4790d46e1f 100644
+--- a/SampleApplications/IPCServerSampleApplication/src/CMakeLists.txt
++++ b/SampleApplications/IPCServerSampleApplication/src/CMakeLists.txt
+@@ -1,4 +1,4 @@
+ 
+-add_executable(IPCServerSampleApp main.cpp)
++#add_executable(IPCServerSampleApp main.cpp)
+ 
+-target_link_libraries(IPCServerSampleApp LibIPCServerSampleApp)
++#target_link_libraries(IPCServerSampleApp LibIPCServerSampleApp)
+-- 
+2.17.1
+

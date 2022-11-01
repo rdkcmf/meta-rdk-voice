@@ -1,0 +1,100 @@
+From b35a76ca20021334367f527efd3a678212b37f47 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 1 Nov 2022 08:32:32 +0000
+Subject: [PATCH] modify ui attributes
+
+Test Procedure: Enable necessary configurations and build with avs-sdk-oobe-screens.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ samples/alexa-smart-screen-sample-app/src/assets/main.css     | 4 ++--
+ .../src/components/home/DeviceDescription.ts                  | 3 ++-
+ .../src/components/home/HomeScreen.ts                         | 1 +
+ .../src/components/home/InteractionDetails.ts                 | 2 +-
+ .../alexa-smart-screen-sample-app/src/components/home/Logo.ts | 1 +
+ 5 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/samples/alexa-smart-screen-sample-app/src/assets/main.css b/samples/alexa-smart-screen-sample-app/src/assets/main.css
+index 63fb7d7..158a440 100644
+--- a/samples/alexa-smart-screen-sample-app/src/assets/main.css
++++ b/samples/alexa-smart-screen-sample-app/src/assets/main.css
+@@ -8,7 +8,7 @@
+ 
+ body, html {
+     overflow: hidden;
+-    background-color: black;
++    background: rgba(0, 0, 0, 0.0);
+ }
+ 
+ * {
+@@ -31,5 +31,5 @@ sample-app {
+ 
+     flex-direction: column;
+     justify-content: flex-end;
+-    background-color:  var(--display-color);
++    background: rgba(2, 14, 19, 0.0);
+ }
+diff --git a/samples/alexa-smart-screen-sample-app/src/components/home/DeviceDescription.ts b/samples/alexa-smart-screen-sample-app/src/components/home/DeviceDescription.ts
+index 901957d..19bcc2b 100644
+--- a/samples/alexa-smart-screen-sample-app/src/components/home/DeviceDescription.ts
++++ b/samples/alexa-smart-screen-sample-app/src/components/home/DeviceDescription.ts
+@@ -36,6 +36,7 @@ export class DeviceDescription extends HTMLElement {
+     this.style.color = 'lightgray';
+     this.style.paddingTop = '5px';
+     this.style.textAlign = 'center';
++	this.style.opacity = '0';
+   }
+ 
+   public render() : void {
+@@ -45,7 +46,7 @@ export class DeviceDescription extends HTMLElement {
+       if (this.homeSettings.clientConnection === ClientConnection.CONNECTED) {
+         // If authorized, display device description, otherwise display authorizing notice
+         if (this.homeSettings.authorizationState === AuthorizationState.REFRESHED) {
+-          deviceDescription = `${this.homeSettings.description}<br>Display Mode: ${this.homeSettings.displayMode}`
++          deviceDescription = ``
+         } else {
+           if (this.homeSettings.authorizationRequest) {
+             deviceDescription = 'Authorize Device';
+diff --git a/samples/alexa-smart-screen-sample-app/src/components/home/HomeScreen.ts b/samples/alexa-smart-screen-sample-app/src/components/home/HomeScreen.ts
+index a1b855b..4aace48 100644
+--- a/samples/alexa-smart-screen-sample-app/src/components/home/HomeScreen.ts
++++ b/samples/alexa-smart-screen-sample-app/src/components/home/HomeScreen.ts
+@@ -63,6 +63,7 @@ export class HomeScreen extends HTMLElement {
+     this.style.alignItems = 'center';
+     this.style.justifyContent = 'center';
+     this.style.height = '100%';
++	this.style.opacity = '0';
+   }
+ 
+   public updateScreen(homeSettings : IHomeScreenProps) : void {
+diff --git a/samples/alexa-smart-screen-sample-app/src/components/home/InteractionDetails.ts b/samples/alexa-smart-screen-sample-app/src/components/home/InteractionDetails.ts
+index ba2f6d9..e9a4ed1 100644
+--- a/samples/alexa-smart-screen-sample-app/src/components/home/InteractionDetails.ts
++++ b/samples/alexa-smart-screen-sample-app/src/components/home/InteractionDetails.ts
+@@ -57,7 +57,7 @@ export class InteractionDetails extends HTMLElement {
+         const talkKey = this.homeSettings.talkKey.toUpperCase();
+         switch (this.homeSettings.audioInputInitiator) {
+           case AudioInputInitiator.PRESS_AND_HOLD : {
+-              interactionString = `Press and Hold "${talkKey}" then Speak`;
++              interactionString = ``;
+               break;
+           }
+           case AudioInputInitiator.TAP : {
+diff --git a/samples/alexa-smart-screen-sample-app/src/components/home/Logo.ts b/samples/alexa-smart-screen-sample-app/src/components/home/Logo.ts
+index 015d248..329b4a5 100644
+--- a/samples/alexa-smart-screen-sample-app/src/components/home/Logo.ts
++++ b/samples/alexa-smart-screen-sample-app/src/components/home/Logo.ts
+@@ -29,6 +29,7 @@ export class Logo extends HTMLElement {
+     this.style.backgroundSize = 'contain';
+     this.style.width = '175px';
+     this.style.height = '112px';
++	this.style.opacity = '0';
+   }
+ }
+ 
+-- 
+2.17.1
+

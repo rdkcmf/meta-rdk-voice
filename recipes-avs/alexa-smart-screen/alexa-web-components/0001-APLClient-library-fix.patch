@@ -1,0 +1,45 @@
+From 558dd48fac5f5902d3c81f001b699160222abda6 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Tue, 1 Nov 2022 09:32:03 +0000
+Subject: [PATCH] APLClient library fix
+
+Reason for change: Build gets broken for standalone build
+Test Procedure: Build with necessary configuration.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ APLClient/CMakeLists.txt     | 4 +++-
+ APLClient/src/CMakeLists.txt | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/APLClient/CMakeLists.txt b/APLClient/CMakeLists.txt
+index be79935..87e3a86 100644
+--- a/APLClient/CMakeLists.txt
++++ b/APLClient/CMakeLists.txt
+@@ -2,4 +2,6 @@ cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+ project(APLClient LANGUAGES CXX)
+ 
+ add_subdirectory("src")
+-add_subdirectory("test")
++if(STANDALONE)
++   add_subdirectory("test")
++endif()
+diff --git a/APLClient/src/CMakeLists.txt b/APLClient/src/CMakeLists.txt
+index f20b8f7..d9d8b16 100644
+--- a/APLClient/src/CMakeLists.txt
++++ b/APLClient/src/CMakeLists.txt
+@@ -24,7 +24,7 @@ AplCoreTextMeasurement.cpp
+ AplCoreLocaleMethods.cpp
+ AplClientRenderer.cpp)
+ 
+-target_include_directories(APLClient PUBLIC "${APLClient_SOURCE_DIR}/include")
++target_include_directories(APLClient PUBLIC "${APLClient_SOURCE_DIR}/include" "${APLCORE_RAPIDJSON_INCLUDE_DIR}")
+ 
+ if(NOT APLCORE_INCLUDE_DIR)
+     message(FATAL_ERROR "APLCore include dir is required")
+-- 
+2.17.1
+
