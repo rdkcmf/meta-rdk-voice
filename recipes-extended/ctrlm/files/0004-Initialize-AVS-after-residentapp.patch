@@ -1,0 +1,167 @@
+From ad0a87d77c51d02d55fbd604544da0c3de6ad820 Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Thu, 10 Nov 2022 17:10:32 +0000
+Subject: [PATCH] RDKDEV-376 : AVS throws connection error after reboot.
+
+Reason for change: Initialize AVS after the ResidentApp activation.
+Test Procedure: Reboot and check after first time authendication of AVS.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ src/Makefile.am                               | 11 ++--
+ .../ctrlm_thunder_plugin_residentapp.cpp      | 50 ++++++++++++++++++
+ .../ctrlm_thunder_plugin_residentapp.h        | 52 +++++++++++++++++++
+ 3 files changed, 107 insertions(+), 6 deletions(-)
+ create mode 100644 src/thunder/plugins/ctrlm_thunder_plugin_residentapp.cpp
+ create mode 100644 src/thunder/plugins/ctrlm_thunder_plugin_residentapp.h
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index a18ea61..b870e90 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -162,6 +162,11 @@ controlMgr_SOURCES +=  thunder/ctrlm_thunder_plugin.cpp    \
+                        thunder/plugins/ctrlm_thunder_plugin_hdmi_input.cpp \
+                        thunder/plugins/ctrlm_thunder_plugin_cec_sink.cpp \
+                        thunder/plugins/ctrlm_thunder_plugin_cec.cpp
++
++if SUPPORT_VOICE_DEST_AVS
++controlMgr_SOURCES += thunder/plugins/ctrlm_thunder_plugin_residentapp.cpp
++endif
++
+ endif
+ 
+ if VOICE_KEYWORD_BEEP
+@@ -187,12 +192,6 @@ controlMgr_SOURCES += ../cpc/ip/ctrlm_hal_ip.cpp                   \
+                       ../cpc/ip/ctrlm_ip_util.cpp
+ endif
+ 
+-if THUNDER_ENABLED
+-controlMgr_SOURCES +=  ../cpc/plugins/ctrlm_thunder_plugin_authservice.cpp \
+-                       ../cpc/plugins/ctrlm_thunder_plugin_rams.cpp \
+-                       ../cpc/plugins/ctrlm_thunder_plugin_remote_control.cpp
+-endif
+-
+ if ASB_ENABLED
+ AM_CPPFLAGS += -DASB
+ 
+diff --git a/src/thunder/plugins/ctrlm_thunder_plugin_residentapp.cpp b/src/thunder/plugins/ctrlm_thunder_plugin_residentapp.cpp
+new file mode 100644
+index 0000000..946d1d6
+--- /dev/null
++++ b/src/thunder/plugins/ctrlm_thunder_plugin_residentapp.cpp
+@@ -0,0 +1,50 @@
++/*
++ * If not stated otherwise in this file or this component's license file the
++ * following copyright and licenses apply:
++ *
++ * Copyright 2015 RDK Management
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++*/
++#include "ctrlm_thunder_plugin_residentapp.h"
++#include "ctrlm_thunder_log.h"
++#include <WPEFramework/core/core.h>
++#include <WPEFramework/websocket/websocket.h>
++#include <WPEFramework/plugins/plugins.h>
++#include <glib.h>
++
++#include "AVS.h"
++
++using namespace Thunder;
++using namespace ResidentApp;
++using namespace WPEFramework;
++
++ctrlm_thunder_plugin_residentapp_t residentapp;
++
++
++ctrlm_thunder_plugin_residentapp_t::ctrlm_thunder_plugin_residentapp_t() : ctrlm_thunder_plugin_t("ResidentApp", "ResidentApp", 1) {
++
++}
++
++ctrlm_thunder_plugin_residentapp_t::~ctrlm_thunder_plugin_residentapp_t() {
++
++}
++
++
++void ctrlm_thunder_plugin_residentapp_t::on_initial_activation() {
++     
++    THUNDER_LOG_INFO("RESIDENTAPP ACTIVATED.....\n");
++    THUNDER_LOG_INFO("ACTIVATE AVS.....\n");
++    AVS_Initialize();
++    //Thunder::Plugin::ctrlm_thunder_plugin_t::on_initial_activation();
++}
+diff --git a/src/thunder/plugins/ctrlm_thunder_plugin_residentapp.h b/src/thunder/plugins/ctrlm_thunder_plugin_residentapp.h
+new file mode 100644
+index 0000000..6c318c4
+--- /dev/null
++++ b/src/thunder/plugins/ctrlm_thunder_plugin_residentapp.h
+@@ -0,0 +1,52 @@
++/*
++ * If not stated otherwise in this file or this component's license file the
++ * following copyright and licenses apply:
++ *
++ * Copyright 2014 RDK Management
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++*/
++#ifndef __CTRLM_THUNDER_PLUGIN_CONTROLLER_H__
++#define __CTRLM_THUNDER_PLUGIN_CONTROLLER_H__
++#include "ctrlm_thunder_plugin.h"
++#include <semaphore.h>
++
++namespace Thunder {
++namespace ResidentApp {
++
++/**
++ * This class is used within ControlMgr to interact with the controller Plugin.
++ */
++class ctrlm_thunder_plugin_residentapp_t : public Thunder::Plugin::ctrlm_thunder_plugin_t {
++public:
++    /**
++     * Controller Plugin Default Constructor
++     */
++    ctrlm_thunder_plugin_residentapp_t();
++
++    /**
++     * Controller Plugin Destructor
++     */
++    virtual ~ctrlm_thunder_plugin_residentapp_t();
++
++protected:
++
++    /**
++     * This function is called when the initial activation of the plugin occurs.
++     */
++    virtual void on_initial_activation();
++
++};
++};
++};
++#endif
+\ No newline at end of file
+-- 
+2.25.1
+
