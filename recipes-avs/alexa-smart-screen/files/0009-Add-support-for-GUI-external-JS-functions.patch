@@ -6,7 +6,6 @@ Subject: [PATCH] HX44X-149 : Bring in Voice Support
 Reason for change: Add support for external JS functions from the GUI Client.
 Test Procedure: Enable necessary configurations and build with avs-sdk-oobe-screens.
 Risks: Low
-License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 

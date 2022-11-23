@@ -6,7 +6,6 @@ Subject: [PATCH] RDKDEV-339 : Need of RemoteControl plugin to initiate pairing i
 Reason for change: Hack to initiate the pairing state in BleRcuDaemon without RemoteControl plugin.
 Test Procedure: Build with necessary configuration and check for RCU pairing.
 Risks: Low
-License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 
