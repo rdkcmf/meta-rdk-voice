@@ -42,7 +42,9 @@ EXTRA_OECMAKE = "-DCMAKE_BUILD_TYPE=DEBUG \
                  -DASIO_INCLUDE_DIR=${STAGING_INCDIR} \
                  -DDISABLE_WEBSOCKET_SSL=ON \
                  -DAPL_CLIENT_INSTALL_PATH=${STAGING_DIR_TARGET}/usr \
-                 -DENABLE_ALL_VIDEO_CONTROLLERS=ON \
+                 -DENABLE_ALL_VIDEO_CONTROLLERS=OFF \
+                 -DVIDEO_CONTROLLERS_ALEXA_LAUNCHER=ON \
+                 -DVIDEO_CONTROLLERS_ALEXA_KEYPAD_CONTROLLER=ON \
                  -DASDK_INCLUDE_INSTALL_DIR=${D}${includedir}/AVS \
                  -DASDK_LIB_INSTALL_DIR=${D}${libdir} \
 "

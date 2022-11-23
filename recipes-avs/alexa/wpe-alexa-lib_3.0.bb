@@ -39,7 +39,9 @@ EXTRA_OECMAKE = "-DCMAKE_BUILD_TYPE=DEBUG \
                  -DPORTAUDIO_INCLUDE_DIR=${STAGING_INCDIR} \
                  -DPKCS11=OFF \
                  -DINSTALL_COMMON_SAMPLE_LIBS=ON \
-                 -DENABLE_ALL_VIDEO_CONTROLLERS=ON \
+                 -DENABLE_ALL_VIDEO_CONTROLLERS=OFF \
+                 -DVIDEO_CONTROLLERS_ALEXA_LAUNCHER=ON \
+                 -DVIDEO_CONTROLLERS_ALEXA_KEYPAD_CONTROLLER=ON \
                  -DASDK_LIB_INSTALL_DIR=${D}${libdir} \
                  -DASDK_INCLUDE_INSTALL_DIR=${D}${includedir}/AVS \
 "

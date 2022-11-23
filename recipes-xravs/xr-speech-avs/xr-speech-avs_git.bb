@@ -28,10 +28,14 @@ do_install_append() {
  install -d ${D}${includedir}
  install -m 644 ${S}/AVS.h ${D}${includedir}
  install -m 644 ${S}/avs_sdt/avs_sdt.h ${D}${includedir}
+ # Install the reference app supported configuration.
+ install -d -m 0755 ${D}/etc/WPEFramework/plugins
+ install -m 0644 ${S}/SmartScreen.json ${D}/etc/WPEFramework/plugins/
 }
 FILES_${PN} += " root/AVS/db"
 FILES_${PN} += " ${libdir}/*.so"
 FILES_${PN} += " usr/share/WPEFramework/AVS"
+FILES_${PN} += " etc/WPEFramework/plugins"
 FILES_${PN}-dev = " ${includedir}"
 
 ASNEEDED=""
