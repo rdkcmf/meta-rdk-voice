@@ -7,7 +7,6 @@ Reason for change: Temporary - Work-around for session control.
 Remove once T4H RCU Firmware adopts RDK RCU Spec.
 Test Procedure: Enable respective feature and test audio session trigger.
 Risks: Low
-License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 

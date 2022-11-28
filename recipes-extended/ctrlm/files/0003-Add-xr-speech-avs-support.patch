@@ -6,7 +6,6 @@ Subject: [PATCH] HX44X-149 : Bring in Voice Support
 Reason for change: Integrate xr-speech-avs with control manager
 Test Procedure: Build with sdt and xr-speech-avs enabled.
 Risks: Low
-License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 

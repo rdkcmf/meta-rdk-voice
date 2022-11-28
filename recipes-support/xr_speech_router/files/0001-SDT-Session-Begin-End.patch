@@ -7,7 +7,6 @@ Reason for change: Enable SDT data flow and session end.
 Test Procedure: Enable respective feature and test the voice data flow.
 Risks: Low
 Source: RDKM
-License: Inherited
 Upstream-Status: Pending
 
 Signed-off-by: Aswin M <Aswin_M@comcast.com>

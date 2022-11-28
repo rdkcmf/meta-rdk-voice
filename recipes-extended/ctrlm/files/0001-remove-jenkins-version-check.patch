@@ -7,7 +7,6 @@ Reason for change: rdk_version_parse_version function returns 1 when there is no
 causes the control manager to exit
 Test Procedure: Check whether control manager runs without jenkins build info.
 Risks: Low
-License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 

@@ -7,7 +7,6 @@ Reason for change: Add T4H RCU model and related UUID details.
 This is a temporary change until T4H adopts RDK RCU FW Spec.
 Test Procedure: Enable respective feature and test key trigger.
 Risks: Medium
-License: Inherited
 Upstream-Status: Pending
 Source: RDKM
 
