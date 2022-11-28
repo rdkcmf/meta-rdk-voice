@@ -1,9 +1,9 @@
-From 75b2fde31c7bdfaa71f07ff81b0f26880f4f9655 Mon Sep 17 00:00:00 2001
+From 714f7165e61e05053059469f8bcb2c349d8f29ce Mon Sep 17 00:00:00 2001
 From: Aswin M <aswin_m@comcast.com>
-Date: Tue, 1 Nov 2022 07:15:14 +0000
-Subject: [PATCH] sample app fix
+Date: Mon, 28 Nov 2022 12:14:42 +0000
+Subject: [PATCH] Subject: [PATCH] sample app fix
 
-Reason for change: Build get broken with xr-speech-avs
+Reason for change: Build get broken with xr-speech-avs.
 Test Procedure: Build with necessary configuration.
 Risks: Low
 Upstream-Status: Pending
@@ -11,11 +11,12 @@ Source: RDKM
 
 Signed-off-by: Aswin M <Aswin_M@comcast.com>
 ---
- .../include/IPCServerSampleApp/SampleApplication.h              | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../include/IPCServerSampleApp/SampleApplication.h  | 10 +++++++++-
+ .../LibIPCServerSampleApp/src/SampleApplication.cpp | 13 +++++++------
+ 2 files changed, 16 insertions(+), 7 deletions(-)
 
 diff --git a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h
-index 3af784edbb..d7b5197dc6 100644
+index 3af784edbb..241721ea23 100644
 --- a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h
 +++ b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/include/IPCServerSampleApp/SampleApplication.h
 @@ -145,7 +145,7 @@ public:
@@ -27,6 +28,69 @@ index 3af784edbb..d7b5197dc6 100644
      /**
       * Initialize a SampleApplication.
       *
+@@ -267,6 +267,14 @@ private:
+     /// The adapter that supports authorizing with LWA based methods.
+     std::shared_ptr<acsdkAuthorization::lwa::LWAAuthorizationAdapter> m_lwaAdapter;
+ 
++    std::shared_ptr<avsCommon::utils::AudioFormat> compatibleAudioFormat;
++
++    //shared data stream
++    std::shared_ptr<avsCommon::avs::AudioInputStream> sharedDataStream;
++
++    //audio intefrace
++    std::shared_ptr<applicationUtilities::resources::audio::MicrophoneInterface> micWrapper;
++
+     std::string decodeHexToAscii(const std::string hexString);
+ };
+ 
+diff --git a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/SampleApplication.cpp b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/SampleApplication.cpp
+index d06f440b49..e40f5f64a2 100644
+--- a/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/SampleApplication.cpp
++++ b/SampleApplications/IPCServerSampleApplication/LibIPCServerSampleApp/src/SampleApplication.cpp
+@@ -1031,13 +1031,14 @@ bool SampleApplication::initialize(
+     /*
+      * Creating the buffer (Shared Data Stream) that will hold user audio data. This is the main input into the SDK.
+      */
++    /*
+     std::shared_ptr<avsCommon::utils::AudioFormat> compatibleAudioFormat =
+         acsdkAudioInputStream::CompatibleAudioFormat::getCompatibleAudioFormat();
+ 
+-    std::shared_ptr<avsCommon::avs::AudioInputStream> sharedDataStream =
++    sharedDataStream =
+         acsdkAudioInputStream::AudioInputStreamFactory::createAudioInputStream(
+             compatibleAudioFormat, WORD_SIZE, MAX_READERS, AMOUNT_OF_AUDIO_DATA_IN_BUFFER);
+-
++    */
+     if (!sharedDataStream) {
+         ACSDK_CRITICAL(LX("Failed to create shared data stream!"));
+         return false;
+@@ -1077,7 +1078,7 @@ bool SampleApplication::initialize(
+ #endif  // KWD
+ 
+ #ifdef PORTAUDIO
+-    std::shared_ptr<PortAudioMicrophoneWrapper> micWrapper = PortAudioMicrophoneWrapper::create(sharedDataStream);
++    micWrapper = PortAudioMicrophoneWrapper::create(sharedDataStream);
+ #elif AUDIO_INJECTION
+     std::shared_ptr<avsCommon::sdkInterfaces::diagnostics::AudioInjectorInterface> audioInjector;
+     if (diagnostics) {
+@@ -1088,14 +1089,14 @@ bool SampleApplication::initialize(
+         ACSDK_CRITICAL(LX("No audio injector provided!"));
+         return false;
+     }
+-    std::shared_ptr<applicationUtilities::resources::audio::MicrophoneInterface> micWrapper =
++    micWrapper =
+         audioInjector->getMicrophone(sharedDataStream, *compatibleAudioFormat);
+ #elif defined(UWP_BUILD)
+-    std::shared_ptr<alexaSmartScreenSDK::sssdkCommon::NullMicrophone> micWrapper =
++    micWrapper =
+         std::make_shared<alexaSmartScreenSDK::sssdkCommon::NullMicrophone>(sharedDataStream);
+ #else
+     ACSDK_CRITICAL(LX("No microphone module provided!"));
+-    return false;
++    //return false;
+ #endif
+     if (!micWrapper) {
+         ACSDK_CRITICAL(LX("Failed to create microphone wrapper!"));
 -- 
 2.17.1
 
