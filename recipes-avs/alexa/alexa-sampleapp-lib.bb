@@ -33,7 +33,7 @@ CXXFLAGS_append = " -I${STAGING_INCDIR}/AVS"
 
 EXTRA_OECMAKE = "-DCMAKE_BUILD_TYPE=DEBUG \
                  -DGSTREAMER_MEDIA_PLAYER=ON \
-                 -DPORTAUDIO=ON \
+                 -DPORTAUDIO=OFF \
                  -DRAPIDJSON_MEM_OPTIMIZATION=OFF \
                  -DPORTAUDIO_LIB_PATH=${STAGING_LIBDIR}/libportaudio.so \
                  -DPORTAUDIO_INCLUDE_DIR=${STAGING_INCDIR} \
