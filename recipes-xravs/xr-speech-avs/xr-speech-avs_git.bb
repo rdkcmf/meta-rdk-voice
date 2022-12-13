@@ -7,7 +7,7 @@ include include/xr_speech_avs.inc
 
 S = "${WORKDIR}/git/xr-speech-avs"
 
-DEPENDS += "wpeframework-interfaces asio rdkx-logger xr-speech-router sqlite3"
+DEPENDS += "wpeframework-interfaces asio rdkx-logger xr-speech-router sqlite3 libevdev"
 
 XLOG_MODULE_NAME="VSDK"
 
