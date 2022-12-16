@@ -27,7 +27,11 @@ do_apply_patch() {
     cd ${S}
     if [ ! -e patch_applied ]; then
         if [ "${@bb.utils.contains('DISTRO_FEATURES', 'enable-rdkv-bt-voice', 'true', 'false', d)}" = "true" ]; then
+                bbnote "Patching 0001-remove-jenkins-version-check.patch"
                 patch -p1 < ${WORKDIR}/0001-remove-jenkins-version-check.patch
+
+                bbnote " "
+                bbnote "Patching 0003-Add-xr-speech-avs-support.patch"
                 patch -p1 < ${WORKDIR}/0003-Add-xr-speech-avs-support.patch
         fi
         touch patch_applied
