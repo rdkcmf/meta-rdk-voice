@@ -15,6 +15,7 @@ SRC_URI  += "file://0001-gst-adjust-rank.patch"
 SRC_URI += "file://0002-sample-app-fix-3.0.patch"
 SRC_URI += "file://0003-Build-the-SampleApplication-as-library-3.0.patch"
 SRC_URI += "file://0004-sdk-header-installation-fix.patch"
+SRC_URI += "file://0006-Launch-skill-response-handling-3.0.patch"
 
 #3.0
 SRCREV_alexa-device-sdk = "b32be0a1139be1aa22f1df5f59ba394d3b6a9697"
@@ -48,6 +49,8 @@ EXTRA_OECMAKE = "-DCMAKE_BUILD_TYPE=DEBUG \
                  -DASDK_LIB_INSTALL_DIR=${D}${libdir} \
                  -DASDK_INCLUDE_INSTALL_DIR=${D}${includedir}/AVS \
 "
+
+CXXFLAGS_append = "${@bb.utils.contains('DISTRO_FEATURES', 'use-rdk-ui', ' -DSKILL_HANDLER_FROM_UI', '', d)}"
 
 RDEPENDS_${PN} += "bash perl"
 DEPENDS = "curl nghttp2 sqlite3 gstreamer1.0-plugins-base cjson"

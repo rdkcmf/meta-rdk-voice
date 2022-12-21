@@ -1,0 +1,34 @@
+From c273c57886d2ed9d318512e6d7835005eeb6d0dd Mon Sep 17 00:00:00 2001
+From: Aswin M <aswin_m@comcast.com>
+Date: Wed, 21 Dec 2022 09:26:30 +0000
+Subject: [PATCH] Disable launch skill response handling when UI handles it
+
+Reason for change: Disable launch skill response handling when UI handles the launch directives
+Test Procedure: Build with necessary configuration.
+Risks: Low
+Upstream-Status: Pending
+Source: RDKM
+
+Signed-off-by: Aswin M <Aswin_M@comcast.com>
+---
+ .../acsdkAlexaLauncher/src/AlexaLauncherCapabilityAgent.cpp   | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/capabilities/AlexaLauncher/acsdkAlexaLauncher/src/AlexaLauncherCapabilityAgent.cpp b/capabilities/AlexaLauncher/acsdkAlexaLauncher/src/AlexaLauncherCapabilityAgent.cpp
+index 7e123d87fe..37d0a34be0 100644
+--- a/capabilities/AlexaLauncher/acsdkAlexaLauncher/src/AlexaLauncherCapabilityAgent.cpp
++++ b/capabilities/AlexaLauncher/acsdkAlexaLauncher/src/AlexaLauncherCapabilityAgent.cpp
+@@ -213,7 +213,9 @@ void AlexaLauncherCapabilityAgent::handleDirective(std::shared_ptr<DirectiveInfo
+         }
+ 
+         executeSetHandlingCompleted(info);
+-        executeSendResponseEvent(info, result);
++        #ifndef SKILL_HANDLER_FROM_UI
++            executeSendResponseEvent(info, result);
++        #endif //SKILL_HANDLER_FROM_UI
+     });
+ }
+ 
+-- 
+2.17.1
+
