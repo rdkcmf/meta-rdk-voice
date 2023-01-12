@@ -30,7 +30,7 @@ SRCREV_alexa-web-components ="${AUTOREV}"
 SRC_URI += "file://0002-modify-ui-attributes-3.0.patch;patchdir=${WORKDIR}/alexa-web-components"
 SRC_URI += "file://0003-Add-support-for-GUI-external-JS-functions-3.0.patch;patchdir=${WORKDIR}/alexa-web-components"
 
-include ${@bb.utils.contains('DISTRO_FEATURES', 'voice-chrome', "avs-voice-chrome-1.0.0.inc", "avs-voice-chrome-stub.inc", d)}
+include ${@bb.utils.contains('DISTRO_FEATURES', 'voice-chrome', "avs-voice-chrome-1.1.0.inc", "", d)}
 
 #OOBE-Screen
 SRCREV_alexa-sdk-oobe-screens ="${AUTOREV}"
